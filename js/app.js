@@ -94,3 +94,62 @@ window.showAddFunds = async (memberId) => {
         }
     }
 };
+
+window.showExpenseModal = () => {
+    // Check if modal already exists to prevent duplicates
+    if (document.getElementById('expense-modal')) return;
+
+    const modalHtml = `
+        <div class="modal-overlay" id="expense-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;">
+            <div class="card modal" style="background:white; padding:30px; border-radius:24px; max-width:400px; width:90%;">
+                <h3 style="margin-top:0">Group Purchase</h3>
+                <p><small>Cost for beans, milk, or snacks.</small></p>
+                
+                <input type="number" id="exp-amount" placeholder="Amount (€)" step="0.01" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:8px;">
+                <input type="text" id="exp-msg" placeholder="Item (e.g. 1kg Espresso)" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:8px;">
+                <label style="display:block; margin-top:10px; font-size:0.8rem;">Optional: Receipt Photo</label>
+                <input type="file" id="exp-file" accept="image/*" style="width:100%; margin-bottom:20px;">
+                
+                <div style="display:flex; gap:10px;">
+                    <button onclick="window.submitExpense()" class="btn-primary" style="flex:2">Save</button>
+                    <button onclick="document.getElementById('expense-modal').remove()" class="btn-cancel" style="flex:1">Cancel</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
+
+window.submitExpense = async () => {
+    const amountInput = document.getElementById('exp-amount');
+    const msgInput = document.getElementById('exp-msg');
+    const fileInput = document.getElementById('exp-file');
+
+    const amount = amountInput.value;
+    const msg = msgInput.value;
+    const file = fileInput.files[0];
+
+    if (!amount || amount <= 0) {
+        alert("Please enter a valid amount.");
+        return;
+    }
+
+    try {
+        // Disable button to prevent double-submitting
+        const saveBtn = document.querySelector('#expense-modal .btn-primary');
+        saveBtn.innerText = "Saving...";
+        saveBtn.disabled = true;
+
+        await DB.recordExpense(amount, msg, file);
+        
+        alert("Expense recorded! Collective pot updated.");
+        location.reload();
+    } catch (e) {
+        console.error(e);
+        alert("Error saving expense. Check console for details.");
+        // Re-enable button on error
+        const saveBtn = document.querySelector('#expense-modal .btn-primary');
+        saveBtn.innerText = "Save";
+        saveBtn.disabled = false;
+    }
+};
