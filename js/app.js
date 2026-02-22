@@ -81,6 +81,37 @@ window.handleCoffee = async () => {
     }
 };
 
+window.showClaimQR = (memberId) => {
+    // Create the claim URL
+    const baseUrl = window.location.origin + window.location.pathname;
+    const claimUrl = `${baseUrl}?claim=${memberId}`;
+    
+    // Create modal
+    const modal = document.createElement('div');
+    modal.className = 'qr-modal';
+    modal.id = 'qr-modal';
+    modal.innerHTML = `
+        <div class="qr-modal-content">
+            <button class="qr-close-btn" onclick="document.getElementById('qr-modal').remove()">✕</button>
+            <h3>Share Identification</h3>
+            <p>Scan this code on a new device to link your account</p>
+            <div id="qr-code"></div>
+            <p style="font-size: 0.75rem; margin-top: 1rem; word-break: break-all;">${claimUrl}</p>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Generate QR code
+    new QRCode(document.getElementById('qr-code'), {
+        text: claimUrl,
+        width: 250,
+        height: 250,
+        colorDark: '#2d3436',
+        colorLight: '#ffffff'
+    });
+};
+
 window.showAddFunds = async (memberId) => {
     const amount = prompt("Enter amount to add to this tab (€):", "10.00");
     const msg = prompt("Note (e.g., 'Cash' or 'PayPal'):", "Cash payment");

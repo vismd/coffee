@@ -1,8 +1,11 @@
 const UI = {
     renderUserStats(member) {
         return `
-            <div class="card">
-                <h2>Welcome, ${member.name}</h2>
+            <div class="card welcome-card">
+                <div class="welcome-header">
+                    <h2>Welcome, ${member.name}</h2>
+                    <button class="btn-qr" onclick="window.showClaimQR('${member.$id}')" title="Share identification code">📱</button>
+                </div>
                 <div class="stat-grid">
                     <div class="stat"><span>Balance</span> <b>€${member.balance.toFixed(2)}</b></div>
                     <div class="stat"><span>Coffees</span> <b>${member.total_coffees}</b></div>
