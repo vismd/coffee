@@ -8,7 +8,7 @@ const account = new Account(client);
 const databases = new Databases(client);
 const storage = new Storage(client);
 
-const DB_ID = 'coffee_db';
+const DB_ID = '699b2904001d13c834d3';
 const COLL_MEMBERS = 'members';
 const COLL_LOGS = 'logs';
 const COLL_GLOBAL = 'global_config'; // Store group balance here
