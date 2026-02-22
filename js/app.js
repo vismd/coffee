@@ -117,11 +117,20 @@ window.handleCoffee = async () => {
 window.showClaimQR = async (memberId) => {
     try {
         // Create a single-use claim document (5 minute expiry)
-        const claim = await databases.createDocument(DB_ID, COLL_CLAIMS, ID.unique(), {
-            memberId,
-            createdAt: new Date().toISOString(),
-            expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString()
-        });
+        // Include permissions so the client may create it without changing collection defaults.
+        // For production, tighten these permissions (e.g., to the creating user) as needed.
+        const claim = await databases.createDocument(
+            DB_ID,
+            COLL_CLAIMS,
+            ID.unique(),
+            {
+                memberId,
+                createdAt: new Date().toISOString(),
+                expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString()
+            },
+            ["role:all"], // read permissions
+            ["role:all"]  // write permissions
+        );
 
         // Build URL with claim_token
         const baseUrl = window.location.origin + window.location.pathname;
