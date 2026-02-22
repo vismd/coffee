@@ -38,3 +38,27 @@ const App = {
 };
 
 window.onload = () => App.init();
+
+window.handleCoffee = async () => {
+    // 1. Check if we have the user's data loaded
+    if (!App.userMember) {
+        alert("User data not loaded. Please refresh.");
+        return;
+    }
+
+    // 2. Ask for confirmation (prevents accidental clicks)
+    if (confirm("Confirm 1 Coffee (€0.50)?")) {
+        try {
+            // 3. Call the DB function with the required data
+            await DB.registerCoffee(App.userMember, 0.50);
+            
+            alert("Enjoy your coffee! ☕");
+            
+            // 4. Refresh to show the new balance
+            location.reload(); 
+        } catch (error) {
+            console.error(error);
+            alert("Error: Could not save transaction.");
+        }
+    }
+};
