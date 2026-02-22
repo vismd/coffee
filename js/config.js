@@ -12,4 +12,4 @@ const DB_ID = '699b2904001d13c834d3';
 const COLL_MEMBERS = 'members';
 const COLL_LOGS = 'logs';
 const COLL_GLOBAL = 'global_config'; // Store group balance here
-const BUCKET_ID = 'receipts';
+const BUCKET_ID = '699b36f4000ca06321c8';

@@ -60,6 +60,16 @@ body {
 
 .btn-primary:active { transform: scale(0.98); }
 
+.btn-cancel {
+    background: #f2f2f7;
+    color: #1d1d1f;
+    border: none;
+    padding: 14px;
+    border-radius: 12px;
+    flex: 1;
+    cursor: pointer;
+}
+
 table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
 th, td { text-align: left; padding: 0.8rem; border-bottom: 1px solid var(--border); }
 
@@ -100,4 +110,32 @@ th, td { text-align: left; padding: 0.8rem; border-bottom: 1px solid var(--borde
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
+}
+
+.modal {
+    max-width: 400px;
+    width: 90%;
+    position: relative;
+    padding: 30px;
+    border-radius: 28px;
+    background: #fff;
+}
+
+.modal h3 { margin-top: 0; font-size: 1.4rem; }
+
+.modal input {
+    width: 100%;
+    padding: 14px;
+    margin: 10px 0;
+    border-radius: 12px;
+    border: 1px solid #eee;
+    background: #f9f9f9;
+    font-size: 1rem;
+    box-sizing: border-box; /* Crucial for padding */
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
 }

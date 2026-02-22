@@ -53,6 +53,35 @@ const DB = {
         return await this.logAction('COFFEE', -price, memberDoc.$id, memberDoc.name);
     },
 
+    async recordExpense(amount, message, file) {
+        let fileId = null;
+
+        // 1. If the admin selected a photo, upload it first
+        if (file) {
+            try {
+                const uploadedFile = await storage.createFile(
+                    BUCKET_ID,          // Must match the ID in Appwrite Storage
+                    Appwrite.ID.unique(), 
+                    file
+                );
+                fileId = uploadedFile.$id;
+            } catch (storageError) {
+                console.error("Storage Upload Failed:", storageError);
+                // We can decide to continue without the photo or stop here
+                throw new Error("Receipt upload failed. Expense not recorded.");
+            }
+        }
+
+        // 2. Update Global Pot
+        const global = await databases.getDocument(DB_ID, COLL_GLOBAL, 'main');
+        await databases.updateDocument(DB_ID, COLL_GLOBAL, 'main', {
+            group_funds: global.group_funds - parseFloat(amount)
+        });
+
+        // 3. Log it
+        return await this.logAction('EXPENSE', -amount, 'ADMIN', 'System', message, fileId);
+    },
+
     // Admin: Add funds to user and update group balance
     async addFunds(memberDoc, amount, message, adminName) {
         // 1. Update User
