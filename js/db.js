@@ -1,4 +1,23 @@
 const DB = {
+    // 1. Fetch member by their Appwrite UID (Missing function fix)
+    async getMemberByUid(uid) {
+        try {
+            const result = await databases.listDocuments(DB_ID, COLL_MEMBERS, [
+                Appwrite.Query.equal('appwrite_uid', uid)
+            ]);
+            return result.documents[0] || null;
+        } catch (error) {
+            console.error("Error fetching member:", error);
+            return null;
+        }
+    },
+
+    // 2. Fetch all members (for Admin panel)
+    async getAllMembers() {
+        const result = await databases.listDocuments(DB_ID, COLL_MEMBERS);
+        return result.documents;
+    },
+    
     // Log an action (Coffee, Funds, Purchase)
     async logAction(type, amount, userId, userName, message = "", fileId = null) {
         return await databases.createDocument(DB_ID, COLL_LOGS, ID.unique(), {
