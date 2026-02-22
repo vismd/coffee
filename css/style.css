@@ -10,7 +10,7 @@
 body.dark-mode {
     --bg: #1a1a1a;
     --card: #2d2d2d;
-    --primary: #838383;
+    --primary: #747474;
     --text: #e8e8e8;
     --border: #444444;
 }
@@ -151,6 +151,11 @@ th, td { text-align: left; padding: 0.8rem; border-bottom: 1px solid var(--borde
     padding: 20px;
     text-align: center;
     margin-bottom: 20px;
+    transition: background-color 0.3s;
+}
+
+body.dark-mode .group-pot {
+    background: #3d3d3d;
 }
 
 /* View Image Button in Logs */
@@ -176,6 +181,10 @@ th, td { text-align: left; padding: 0.8rem; border-bottom: 1px solid var(--borde
 
 .group-pot p { margin: 0; font-size: 0.8rem; color: #636e72; text-transform: uppercase; }
 .group-pot h2 { margin: 5px 0 0 0; font-size: 2rem; color: var(--text); }
+
+body.dark-mode .group-pot p {
+    color: #a0a0a0;
+}
 
 /* Member List Styling */
 .member-list {
