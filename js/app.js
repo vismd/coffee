@@ -128,8 +128,8 @@ window.showClaimQR = async (memberId) => {
                 createdAt: new Date().toISOString(),
                 expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString()
             },
-            ["role:all"], // read permissions
-            ["role:all"]  // write permissions
+            ["users"], // read permissions (authenticated users)
+            ["users"]  // write permissions (authenticated users)
         );
 
         // Build URL with claim_token
