@@ -27,6 +27,20 @@ const UI = {
                 </div>
             </div>
         `).join('');
+
+        // THIS IS THE MISSING PIECE:
+        return `
+            <div class="card admin-card fade-in">
+                <div class="group-pot">
+                    <p>Collective Pot</p>
+                    <h2>€${groupFunds.toFixed(2)}</h2>
+                </div>
+                <button class="btn-secondary" onclick="window.showExpenseModal()">Record Group Purchase</button>
+                <div class="member-list">
+                    ${rows}
+                </div>
+            </div>
+        `;
     }
 };
 
