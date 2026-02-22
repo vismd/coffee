@@ -99,6 +99,26 @@ th, td { text-align: left; padding: 0.8rem; border-bottom: 1px solid var(--borde
     margin-bottom: 20px;
 }
 
+/* View Image Button in Logs */
+.btn-view-image {
+    background: #0984e3;
+    color: white;
+    border: none;
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.btn-view-image:hover {
+    opacity: 0.9;
+}
+
+.btn-view-image:active {
+    transform: scale(0.95);
+}
+
 .group-pot p { margin: 0; font-size: 0.8rem; color: #636e72; text-transform: uppercase; }
 .group-pot h2 { margin: 5px 0 0 0; font-size: 2rem; color: var(--text); }
 

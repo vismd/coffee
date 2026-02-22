@@ -95,6 +95,53 @@ window.showAddFunds = async (memberId) => {
     }
 };
 
+window.viewExpenseImage = async (fileId) => {
+    try {
+        // Generate a preview URL for the image
+        const imageUrl = storage.getFilePreview(BUCKET_ID, fileId).href;
+        
+        // Create and show a modal with the image
+        const modal = document.createElement('div');
+        modal.id = 'image-modal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        `;
+        modal.innerHTML = `
+            <div style="position: relative; max-width: 90vw; max-height: 90vh;">
+                <img src="${imageUrl}" style="max-width: 100%; max-height: 100%; border-radius: 12px;" />
+                <button onclick="document.getElementById('image-modal').remove()" style="
+                    position: absolute;
+                    top: 10px;
+                    right: 10px;
+                    background: white;
+                    border: none;
+                    border-radius: 50%;
+                    width: 40px;
+                    height: 40px;
+                    font-size: 20px;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                ">✕</button>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    } catch (error) {
+        console.error("Error viewing image:", error);
+        alert("Could not load image. Please try again.");
+    }
+};
+
 window.showExpenseModal = () => {
     // Check if modal already exists to prevent duplicates
     if (document.getElementById('expense-modal')) return;
