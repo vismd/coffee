@@ -1,0 +1,12 @@
+{
+  "name": "claim-token",
+  "version": "1.0.0",
+  "description": "Appwrite function to exchange a claim token for a JWT",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "node-appwrite": "^10.0.0"
+  }
+}

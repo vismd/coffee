@@ -12,11 +12,44 @@ const App = {
 
             const urlParams = new URLSearchParams(window.location.search);
             const claimId = urlParams.get('claim');
+            const claimToken = urlParams.get('claim_token');
 
             // 1. Get/Create Session
             const sessionUser = await Auth.initSession();
 
-            // 2. Handle QR Claim if present
+            // 2a. If we have a server-backed claim_token, exchange it for a JWT via Cloud Function
+            if (claimToken) {
+                try {
+                    const exec = await functions.createExecution(CLAIM_FUNCTION_ID, JSON.stringify({ token: claimToken }));
+
+                    // Poll for execution completion (timeout after ~15s)
+                    const start = Date.now();
+                    let check = exec;
+                    while ((check.status !== 'completed') && (Date.now() - start < 15000)) {
+                        await new Promise(r => setTimeout(r, 800));
+                        check = await functions.getExecution(CLAIM_FUNCTION_ID, exec.$id);
+                    }
+
+                    if (check.status === 'completed' && check.response) {
+                        const result = JSON.parse(check.response);
+                        if (result && result.jwt) {
+                            await client.setJWT(result.jwt);
+                            // Reload as authenticated user
+                            window.location.href = window.location.pathname;
+                            return;
+                        } else {
+                            alert('Claim exchange failed: ' + (result?.error || 'no jwt returned'));
+                        }
+                    } else {
+                        alert('Claim exchange timed out or failed.');
+                    }
+                } catch (e) {
+                    console.error('Claim exchange error:', e);
+                    alert('Claim exchange failed.');
+                }
+            }
+
+            // 2b. Legacy/simple claim flow (links like ?claim=MEMBER_ID)
             if (claimId) {
                 await Auth.claimIdentity(claimId);
                 // Clean URL and reload to finalize the link
@@ -81,35 +114,45 @@ window.handleCoffee = async () => {
     }
 };
 
-window.showClaimQR = (memberId) => {
-    // Create the claim URL
-    const baseUrl = window.location.origin + window.location.pathname;
-    const claimUrl = `${baseUrl}?claim=${memberId}`;
-    
-    // Create modal
-    const modal = document.createElement('div');
-    modal.className = 'qr-modal';
-    modal.id = 'qr-modal';
-    modal.innerHTML = `
-        <div class="qr-modal-content">
-            <button class="qr-close-btn" onclick="document.getElementById('qr-modal').remove()">✕</button>
-            <h3>Share Identification</h3>
-            <p>Scan this code on a new device to link your account</p>
-            <div id="qr-code"></div>
-            <p style="font-size: 0.75rem; margin-top: 1rem; word-break: break-all;">${claimUrl}</p>
-        </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // Generate QR code
-    new QRCode(document.getElementById('qr-code'), {
-        text: claimUrl,
-        width: 250,
-        height: 250,
-        colorDark: '#2d3436',
-        colorLight: '#ffffff'
-    });
+window.showClaimQR = async (memberId) => {
+    try {
+        // Create a single-use claim document (5 minute expiry)
+        const claim = await databases.createDocument(DB_ID, COLL_CLAIMS, ID.unique(), {
+            memberId,
+            createdAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString()
+        });
+
+        // Build URL with claim_token
+        const baseUrl = window.location.origin + window.location.pathname;
+        const claimUrl = `${baseUrl}?claim_token=${claim.$id}`;
+
+        // Show modal + QR
+        const modal = document.createElement('div');
+        modal.className = 'qr-modal';
+        modal.id = 'qr-modal';
+        modal.innerHTML = `
+            <div class="qr-modal-content">
+                <button class="qr-close-btn" onclick="document.getElementById('qr-modal').remove()">✕</button>
+                <h3>Share Identification</h3>
+                <p>Scan this code on a new device to link your account</p>
+                <div id="qr-code"></div>
+                <p style="font-size: 0.75rem; margin-top: 1rem; word-break: break-all;">${claimUrl}</p>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        new QRCode(document.getElementById('qr-code'), {
+            text: claimUrl,
+            width: 250,
+            height: 250,
+            colorDark: '#2d3436',
+            colorLight: '#ffffff'
+        });
+    } catch (e) {
+        console.error('Error creating claim token:', e);
+        alert('Could not create claim QR. See console for details.');
+    }
 };
 
 window.showAddFunds = async (memberId) => {
