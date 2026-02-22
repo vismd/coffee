@@ -18,4 +18,4 @@ const BUCKET_ID = '699b36f4000ca06321c8';
 
 // Deploy the Appwrite Function described in functions/claim-token/README.md
 // then set its ID here so the client can execute it to exchange a claim token for a JWT.
-const CLAIM_FUNCTION_ID = '699b69fc2b97fc5fdc76';
+const CLAIM_FUNCTION_ID = '699b5f6d0008efc5c19c';
