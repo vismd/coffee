@@ -3,6 +3,13 @@ const App = {
 
     async init() {
         try {
+            // Load theme preference from localStorage
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-mode');
+                document.getElementById('theme-toggle').textContent = '☀️';
+            }
+
             const urlParams = new URLSearchParams(window.location.search);
             const claimId = urlParams.get('claim');
 
@@ -199,4 +206,12 @@ window.submitExpense = async () => {
         saveBtn.innerText = "Save";
         saveBtn.disabled = false;
     }
+};
+
+window.toggleTheme = () => {
+    const isDarkMode = document.body.classList.toggle('dark-mode');
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+    
+    const themeToggle = document.getElementById('theme-toggle');
+    themeToggle.textContent = isDarkMode ? '☀️' : '🌙';
 };

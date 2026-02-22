@@ -2,9 +2,17 @@
     --bg: #f8f9fa;
     --card: #ffffff;
     --primary: #2d3436;
-    --accent: #417297;
+    --accent: #497ea7;
     --text: #2d3436;
     --border: #dfe6e9;
+}
+
+body.dark-mode {
+    --bg: #1a1a1a;
+    --card: #2d2d2d;
+    --primary: #e8e8e8;
+    --text: #e8e8e8;
+    --border: #444444;
 }
 
 body {
@@ -14,12 +22,50 @@ body {
     margin: 0;
     display: flex;
     justify-content: center;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+nav {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 2rem;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.theme-toggle {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    transition: transform 0.2s;
+}
+
+.theme-toggle:hover {
+    transform: scale(1.1);
+}
+
+.theme-toggle:active {
+    transform: scale(0.95);
 }
 
 #app {
     width: 100%;
     max-width: 500px;
     padding: 2rem;
+    margin-top: 70px;
 }
 
 .card {
@@ -43,7 +89,15 @@ body {
     flex-direction: column;
 }
 
-.stat span { font-size: 0.8rem; color: #636e72; }
+.stat span { 
+    font-size: 0.8rem; 
+    color: #636e72; 
+}
+
+body.dark-mode .stat span {
+    color: #a0a0a0;
+}
+
 .stat b { font-size: 1.2rem; }
 
 .btn-primary {
@@ -101,7 +155,7 @@ th, td { text-align: left; padding: 0.8rem; border-bottom: 1px solid var(--borde
 
 /* View Image Button in Logs */
 .btn-view-image {
-    background: var(--primary);
+    background: var(--accent);
     color: white;
     border: none;
     padding: 0.4rem 0.8rem;

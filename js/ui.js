@@ -42,7 +42,7 @@ const UI = {
 UI.renderLogs = (logs) => {
     const items = logs.map(log => {
         const hasImage = log.fileId; // Check if this log has an associated image
-        const imageBtn = hasImage ? `<button class="btn-view-image" onclick="window.viewExpenseImage('${log.fileId}')">🖼️ Receipt</button>` : '';
+        const imageBtn = hasImage ? `<button class="btn-view-image" onclick="window.viewExpenseImage('${log.fileId}')">Receipt</button>` : '';
         
         return `
         <div class="log-item">
