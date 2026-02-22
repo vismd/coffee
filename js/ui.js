@@ -7,7 +7,7 @@ const UI = {
                     <div class="stat"><span>Balance</span> <b>€${member.balance.toFixed(2)}</b></div>
                     <div class="stat"><span>Coffees</span> <b>${member.total_coffees}</b></div>
                 </div>
-                <button onclick="handleCoffee()" class="btn-primary">☕ Get Coffee (€0.50)</button>
+                <button onclick="registerCoffee()" class="btn-primary">☕ Get Coffee (€0.50)</button>
             </div>
         `;
     },
