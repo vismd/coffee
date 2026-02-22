@@ -53,8 +53,8 @@ UI.renderLogs = (logs) => {
         <div class="log-item">
             <span class="log-date">${new Date(log.timestamp).toLocaleDateString()}</span>
             <span class="log-desc"><b>${log.userName}</b>: ${log.type}</span>
-            <span class="log-amt ${log.amount < 0 ? 'neg' : 'pos'}">${log.amount > 0 ? '+' : ''}${log.amount.toFixed(2)}</span>
             ${imageBtn}
+            <span class="log-amt ${log.amount < 0 ? 'neg' : 'pos'}">${log.amount > 0 ? '+' : ''}${log.amount.toFixed(2)}</span>
         </div>
     `;
     }).join('');

@@ -97,8 +97,8 @@ window.showAddFunds = async (memberId) => {
 
 window.viewExpenseImage = async (fileId) => {
     try {
-        // Generate a preview URL for the image
-        const imageUrl = storage.getFilePreview(BUCKET_ID, fileId).href;
+        // Construct the image URL directly from Appwrite Storage API
+        const imageUrl = `https://fra.cloud.appwrite.io/v1/storage/buckets/${BUCKET_ID}/files/${fileId}/preview?project=699b182300263577e8a8`;
         
         // Create and show a modal with the image
         const modal = document.createElement('div');
