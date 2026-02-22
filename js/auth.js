@@ -9,6 +9,16 @@ const Auth = {
         }
     },
 
+    async checkAdminStatus() {
+        try {
+            const user = await account.get();
+            // This returns true if the 'admin' label exists on your user account
+            return user.labels && user.labels.includes('admin');
+        } catch (e) {
+            return false;
+        }
+    },
+
     // Generate a QR link for the admin to give to a user
     // The link would look like: site.com/?claim=MEMBER_ID
     async claimIdentity(memberId) {
