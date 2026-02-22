@@ -123,6 +123,59 @@ th, td { text-align: left; padding: 0.8rem; border-bottom: 1px solid var(--borde
 .group-pot p { margin: 0; font-size: 0.8rem; color: #636e72; text-transform: uppercase; }
 .group-pot h2 { margin: 5px 0 0 0; font-size: 2rem; color: var(--text); }
 
+/* Member List Styling */
+.member-list {
+    margin-top: 1.5rem;
+}
+
+.member-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.member-row:last-child {
+    border-bottom: none;
+}
+
+.member-name {
+    flex: 1;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.member-balance {
+    margin: 0 15px;
+    font-weight: 600;
+    min-width: 70px;
+    text-align: right;
+}
+
+.btn-topup {
+    background: var(--accent);
+    color: white;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-topup:hover {
+    opacity: 0.9;
+}
+
+.btn-topup:active {
+    transform: scale(0.95);
+}
+
 /* Fade-in animation for smoothness */
 .fade-in {
     animation: fadeIn 0.4s ease-out;

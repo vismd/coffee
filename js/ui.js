@@ -14,17 +14,12 @@ const UI = {
 
     renderAdminPanel(members, groupFunds) {
         const rows = members.map(m => `
-            <div class="list-item">
-                <div class="member-info">
-                    <span class="name">${m.name}</span>
-                    <span class="subtext">${m.total_coffees} drinks</span>
-                </div>
-                <div class="actions">
-                    <span class="balance-tag ${m.balance < 0 ? 'neg' : 'pos'}">
-                        €${m.balance.toFixed(2)}
-                    </span>
-                    <button class="btn-primary" onclick="window.showAddFunds('${m.$id}')">+</button>
-                </div>
+            <div class="member-row">
+                <span class="member-name">${m.name}</span>
+                <span class="member-balance ${m.balance < 0 ? 'neg' : 'pos'}">
+                    €${m.balance.toFixed(2)}
+                </span>
+                <button class="btn-topup" onclick="window.showAddFunds('${m.$id}')">+</button>
             </div>
         `).join('');
 
@@ -47,7 +42,7 @@ const UI = {
 UI.renderLogs = (logs) => {
     const items = logs.map(log => {
         const hasImage = log.fileId; // Check if this log has an associated image
-        const imageBtn = hasImage ? `<button class="btn-view-image" onclick="window.viewExpenseImage('${log.fileId}')">🖼️ View</button>` : '';
+        const imageBtn = hasImage ? `<button class="btn-view-image" onclick="window.viewExpenseImage('${log.fileId}')">🖼️ Receipt</button>` : '';
         
         return `
         <div class="log-item">
