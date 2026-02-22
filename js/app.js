@@ -73,3 +73,24 @@ window.handleCoffee = async () => {
         }
     }
 };
+
+window.showAddFunds = async (memberId) => {
+    const amount = prompt("Enter amount to add to this tab (€):", "10.00");
+    const msg = prompt("Note (e.g., 'Cash' or 'PayPal'):", "Cash payment");
+    
+    if (amount && !isNaN(amount) && parseFloat(amount) > 0) {
+        try {
+            // 1. Get the member document first
+            const member = await databases.getDocument(DB_ID, COLL_MEMBERS, memberId);
+            
+            // 2. Run the DB logic
+            await DB.addFunds(member, parseFloat(amount), msg);
+            
+            alert(`Successfully added €${amount} to ${member.name}'s account.`);
+            location.reload(); 
+        } catch (error) {
+            console.error(error);
+            alert("Error adding funds. Check your Admin permissions.");
+        }
+    }
+};

@@ -13,22 +13,20 @@ const UI = {
     },
 
     renderAdminPanel(members, groupFunds) {
-        let rows = members.map(m => `
-            <tr>
-                <td>${m.name}</td>
-                <td>€${m.balance.toFixed(2)}</td>
-                <td><button onclick="showAddFunds('${m.$id}')">Add €</button></td>
-            </tr>
-        `).join('');
-
-        return `
-            <div class="admin-panel">
-                <h3>Admin Control</h3>
-                <p>Group Pot: <strong>€${groupFunds.toFixed(2)}</strong></p>
-                <button onclick="showExpenseModal()">Record Purchase (Receipt)</button>
-                <table>${rows}</table>
+        const rows = members.map(m => `
+            <div class="list-item">
+                <div class="member-info">
+                    <span class="name">${m.name}</span>
+                    <span class="subtext">${m.total_coffees} drinks</span>
+                </div>
+                <div class="actions">
+                    <span class="balance-tag ${m.balance < 0 ? 'neg' : 'pos'}">
+                        €${m.balance.toFixed(2)}
+                    </span>
+                    <button class="btn-add" onclick="window.showAddFunds('${m.$id}')">+</button>
+                </div>
             </div>
-        `;
+        `).join('');
     }
 };
 
