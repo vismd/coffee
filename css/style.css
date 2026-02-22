@@ -101,10 +101,11 @@ th, td { text-align: left; padding: 0.8rem; border-bottom: 1px solid var(--borde
 
 /* View Image Button in Logs */
 .btn-view-image {
-    background: #0984e3;
+    background: var(--primary);
     color: white;
     border: none;
     padding: 0.4rem 0.8rem;
+    margin-right: 15px;
     border-radius: 8px;
     font-size: 0.8rem;
     cursor: pointer;

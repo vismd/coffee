@@ -23,7 +23,7 @@ const UI = {
                     <span class="balance-tag ${m.balance < 0 ? 'neg' : 'pos'}">
                         €${m.balance.toFixed(2)}
                     </span>
-                    <button class="btn-add" onclick="window.showAddFunds('${m.$id}')">+</button>
+                    <button class="btn-primary" onclick="window.showAddFunds('${m.$id}')">+</button>
                 </div>
             </div>
         `).join('');
@@ -35,7 +35,7 @@ const UI = {
                     <p>Collective Pot</p>
                     <h2>€${groupFunds.toFixed(2)}</h2>
                 </div>
-                <button class="btn-secondary" onclick="window.showExpenseModal()">Record Group Purchase</button>
+                <button class="btn-primary" onclick="window.showExpenseModal()">Record Group Purchase</button>
                 <div class="member-list">
                     ${rows}
                 </div>
