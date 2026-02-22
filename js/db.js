@@ -31,6 +31,15 @@ const DB = {
         });
     },
 
+    // Fetch latest 10 logs
+    async getLogs() {
+        const result = await databases.listDocuments(DB_ID, COLL_LOGS, [
+            Appwrite.Query.orderDesc('timestamp'),
+            Appwrite.Query.limit(10)
+        ]);
+        return result.documents;
+    },
+
     // Record a coffee (+1 drink, -price from user balance)
     async registerCoffee(memberDoc, price) {
         const newBalance = memberDoc.balance - price;

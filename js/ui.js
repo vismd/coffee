@@ -31,3 +31,15 @@ const UI = {
         `;
     }
 };
+
+UI.renderLogs = (logs) => {
+    const items = logs.map(log => `
+        <div class="log-item">
+            <span class="log-date">${new Date(log.timestamp).toLocaleDateString()}</span>
+            <span class="log-desc"><b>${log.userName}</b>: ${log.type}</span>
+            <span class="log-amt ${log.amount < 0 ? 'neg' : 'pos'}">${log.amount > 0 ? '+' : ''}${log.amount.toFixed(2)}</span>
+        </div>
+    `).join('');
+    
+    return `<div class="card logs-card"><h3>Recent Activity</h3>${items}</div>`;
+};

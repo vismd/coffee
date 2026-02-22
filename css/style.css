@@ -62,3 +62,42 @@ body {
 
 table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
 th, td { text-align: left; padding: 0.8rem; border-bottom: 1px solid var(--border); }
+
+/* Log/History Items */
+.log-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    font-size: 0.9rem;
+}
+
+.log-date { color: #8e8e93; font-size: 0.75rem; min-width: 80px; }
+.log-desc { flex-grow: 1; margin: 0 10px; }
+
+/* Monetary colors */
+.pos { color: #34c759; font-weight: 600; } /* Green for additions */
+.neg { color: #ff3b30; font-weight: 600; } /* Red for subtractions */
+
+/* Group Pot Styling in Admin Panel */
+.group-pot {
+    background: #f2f2f7;
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.group-pot p { margin: 0; font-size: 0.8rem; color: #636e72; text-transform: uppercase; }
+.group-pot h2 { margin: 5px 0 0 0; font-size: 2rem; color: var(--text); }
+
+/* Fade-in animation for smoothness */
+.fade-in {
+    animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
