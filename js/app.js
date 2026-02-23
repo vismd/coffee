@@ -161,59 +161,20 @@ const App = {
                             const jwt = findJwt(parsed);
                             console.info('Claim exchange response:', { parsed, extractedJwt: jwt ? (typeof jwt === 'string' ? '***' : { sessionId: '***', sessionSecret: '***' }) : null });
                             if (jwt) {
-                                console.info('Attempting to set session for device linking...');
-                                try {
-                                    // Handle both JWT strings and session objects
-                                    if (typeof jwt === 'object' && jwt.sessionId && jwt.sessionSecret) {
-                                        // Session response: manually set the session in localStorage and SDK
-                                        console.info('Setting session credentials in localStorage');
-                                        // Store session for SDK to pick up
-                                        localStorage.setItem(`appwrite_session_${client.config.project}`, JSON.stringify({
-                                            id: jwt.sessionId,
-                                            secret: jwt.sessionSecret
-                                        }));
-                                        // Also initialize the client with the secret as JWT fallback
-                                        await client.setJWT(jwt.sessionSecret);
-                                    } else {
-                                        await client.setJWT(jwt);
-                                    }
-                                    console.info('Session credentials applied successfully, reloading...');
-                                    await new Promise(r => setTimeout(r, 150));
-                                    alert('✓ Device successfully linked! Check console logs. Click OK to reload.');
-                                    window.location.href = window.location.pathname;
-                                    return;
-                                } catch (setErr) {
-                                    console.warn('setJWT failed, attempting localStorage fallback', setErr);
-                                    try { 
-                                        if (typeof jwt === 'object' && jwt.sessionSecret) {
-                                            localStorage.setItem(`appwrite_session_${client.config.project}`, JSON.stringify({
-                                                id: jwt.sessionId,
-                                                secret: jwt.sessionSecret
-                                            }));
-                                        } else {
-                                            localStorage.setItem('APPWRITE_JWT_FALLBACK', jwt);
-                                        }
-                                    } catch (e) { console.error('Failed to write fallback session', e); }
+                                console.info('JWT received, but relying on server-side session instead. Reloading...');
+                                alert('✓ Device successfully linked! Click OK to reload and log in.');
+                                window.location.href = window.location.pathname;
+                                return;
+                                
                                     window.location.href = window.location.pathname;
                                     return;
                                 }
                             }
 
-                            if (parsed.linked) {
-                                // Server linked this scanner UID to the member; try to verify the link by fetching the member record for this session UID
-                                try {
-                                    const member = await DB.getMemberByUid(sessionUser.$id);
-                                    if (member) {
-                                        // Member now resolves to this device; reload to continue as linked
-                                        alert('✓ Device linked and verified! Check console logs. Click OK to reload.');
-                                        window.location.href = window.location.pathname;
-                                        return;
-                                    }
-                                } catch (dbCheckErr) {
-                                    console.debug('DB check after claim execution failed', dbCheckErr);
-                                }
-                                // If we couldn't verify membership, still reload so the app can pick up any server-side changes
-                                alert('✓ Device linked on server. Check console logs. Click OK to reload.');
+                            if (parsed.linked && parsed.appwrite_uid) {
+                                // Device successfully linked on server; reload to pick up the new session
+                                console.info('Device linked successfully on server. Reloading to reinitialize session...');
+                                alert('✓ Device successfully linked to member! Click OK to reload and log in.');
                                 window.location.href = window.location.pathname;
                                 return;
                             }
