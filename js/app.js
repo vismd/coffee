@@ -164,8 +164,9 @@ const App = {
                                 console.info('Attempting to set JWT for device linking...');
                                 try {
                                     await client.setJWT(jwt);
-                                    console.info('JWT applied successfully, reloading...');
-                                    await new Promise(r => setTimeout(r, 150));
+                                    console.info('JWT applied successfully');
+                                    // Show dialog so user can read console logs before reload
+                                    alert('✓ Device successfully linked! You can now check the console logs. Click OK to reload.');
                                     window.location.href = window.location.pathname;
                                     return;
                                 } catch (setErr) {
@@ -182,6 +183,7 @@ const App = {
                                     const member = await DB.getMemberByUid(sessionUser.$id);
                                     if (member) {
                                         // Member now resolves to this device; reload to continue as linked
+                                        alert('✓ Device linked and verified! Check console logs. Click OK to reload.');
                                         window.location.href = window.location.pathname;
                                         return;
                                     }
@@ -189,6 +191,7 @@ const App = {
                                     console.debug('DB check after claim execution failed', dbCheckErr);
                                 }
                                 // If we couldn't verify membership, still reload so the app can pick up any server-side changes
+                                alert('✓ Device linked on server. Check console logs. Click OK to reload.');
                                 window.location.href = window.location.pathname;
                                 return;
                             }
