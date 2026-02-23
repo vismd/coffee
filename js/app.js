@@ -11,6 +11,27 @@ const App = {
             }
 
             const urlParams = new URLSearchParams(window.location.search);
+
+            // If a previous flow stored a fallback JWT (due to SDK race), try to apply it now.
+            try {
+                const fallbackJwt = localStorage.getItem('APPWRITE_JWT_FALLBACK');
+                if (fallbackJwt) {
+                    // Retry setting JWT a few times in case BroadcastChannel/EventTarget still initializing
+                    let applied = false;
+                    for (let i = 0; i < 5 && !applied; i++) {
+                        try {
+                            await client.setJWT(fallbackJwt);
+                            applied = true;
+                            localStorage.removeItem('APPWRITE_JWT_FALLBACK');
+                            console.info('Applied fallback JWT from localStorage');
+                        } catch (e) {
+                            await new Promise(r => setTimeout(r, 200));
+                        }
+                    }
+                }
+            } catch (e) {
+                console.debug('Error applying fallback JWT', e);
+            }
             const claimId = urlParams.get('claim');
             const claimToken = urlParams.get('claim_token');
 
