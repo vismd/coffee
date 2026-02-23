@@ -97,6 +97,18 @@ const App = {
                             }
                         } else {
                             console.warn('Claim execution completed with no response object', check);
+                            // Some runtimes write output to logs only; try to detect whether the scanner was linked by
+                            // checking the member record for this session UID. If found, reload to continue as linked.
+                            try {
+                                const member = await DB.getMemberByUid(sessionUser.$id);
+                                if (member) {
+                                    console.info('Member found after claim execution (no direct response). Reloading.');
+                                    window.location.href = window.location.pathname;
+                                    return;
+                                }
+                            } catch (dbCheckErr) {
+                                console.debug('DB check after claim execution failed', dbCheckErr);
+                            }
                             alert('Claim exchange failed: no response from function. Check function logs.');
                         }
 
