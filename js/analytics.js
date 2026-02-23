@@ -137,7 +137,9 @@ const Analytics = {
                 <span class="metric-value ${balanceClass}">€${this.userMember.balance.toFixed(2)}</span>
             </div>
         `;
-        
+    },
+
+    getChartColors() {
         const isDarkMode = document.body.classList.contains('dark-mode');
         return {
             backgroundColor: [
