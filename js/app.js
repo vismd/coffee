@@ -177,6 +177,10 @@ const App = {
                                     await new Promise(r => setTimeout(r, 200));
                                     window.location.href = window.location.pathname;
                                     return;
+                                } catch (setErr) {
+                                    console.warn('Failed to initialize session:', setErr);
+                                }
+                            }
 
                             if (parsed.linked && parsed.appwrite_uid) {
                                 // Device successfully linked on server
