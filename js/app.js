@@ -329,12 +329,13 @@ window.showClaimQR = async (memberId) => {
         // Populate QR and set up copy handler
         try {
             const qrTarget = document.getElementById('qr-code');
+            const isDarkMode = document.body.classList.contains('dark-mode');
             new QRCode(qrTarget, {
                 text: claimUrl,
                 width: 250,
                 height: 250,
-                colorDark: '#2d3436',
-                colorLight: '#ffffff'
+                colorDark: isDarkMode ? '#ffffff' : '#2d3436',
+                colorLight: isDarkMode ? '#2d3436' : '#ffffff'
             });
 
             const linkInput = document.getElementById('claim-link-input');

@@ -152,9 +152,9 @@ const Analytics = {
                 '#0984e3',
                 '#74b9ff'
             ],
-            borderColor: isDarkMode ? '#444' : '#ddd',
-            textColor: isDarkMode ? '#e8e8e8' : '#2d3436',
-            gridColor: isDarkMode ? '#444' : '#ddd'
+            borderColor: isDarkMode ? '#555' : '#999',
+            textColor: isDarkMode ? '#e8e8e8' : '#1a1a1a',
+            gridColor: isDarkMode ? '#444' : '#ccc'
         };
     },
 
