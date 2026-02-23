@@ -90,6 +90,7 @@ module.exports = async function (req, res) {
 
     const databases = new sdk.Databases(client);
     const account = new sdk.Account(client);
+    const users = new sdk.Users(client);
 
     // Read claim doc
     // Read claim doc
@@ -172,28 +173,34 @@ module.exports = async function (req, res) {
 
     if (!memberDoc || !memberDoc.appwrite_uid) return reply({ error: 'no linked user' }, 400);
 
-    // Create JWT for that user
-    // Create JWT via REST endpoint (avoid SDK differences in function runtimes)
+    // Create JWT for that user using SDK (preferable) and fall back to REST if needed
     let jwtResp;
     try {
-      const endpoint = (process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
-      const url = `${endpoint}/users/${memberDoc.appwrite_uid}/jwt`;
-      console.log('CREATE_JWT_URL', url);
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'X-Appwrite-Project': process.env.APPWRITE_PROJECT,
-          'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
-          'Content-Type': 'application/json'
-        }
-      });
-      const data = await resp.json();
-      console.log('CREATE_JWT_RESPONSE', JSON.stringify({ status: resp.status, body: data }));
-      if (!resp.ok) throw new Error(`createJWT fetch failed: ${resp.status} ${JSON.stringify(data)}`);
-      jwtResp = data;
+      jwtResp = await users.createJWT(memberDoc.appwrite_uid);
+      console.log('CREATE_JWT_SDK', JSON.stringify(jwtResp));
     } catch (e) {
-      console.error('Failed to create JWT', e);
-      return reply({ error: 'server error', details: e.message }, 500);
+      console.error('users.createJWT failed', e);
+      // Fallback: try the REST endpoint (some Appwrite versions differ)
+      try {
+        const endpoint = (process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
+        const url = `${endpoint}/users/${memberDoc.appwrite_uid}/jwt`;
+        console.log('CREATE_JWT_URL_FALLBACK', url);
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'X-Appwrite-Project': process.env.APPWRITE_PROJECT,
+            'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
+            'Content-Type': 'application/json'
+          }
+        });
+        const data = await resp.json();
+        console.log('CREATE_JWT_RESPONSE_FALLBACK', JSON.stringify({ status: resp.status, body: data }));
+        if (!resp.ok) throw new Error(`createJWT fetch failed: ${resp.status} ${JSON.stringify(data)}`);
+        jwtResp = data;
+      } catch (fetchErr) {
+        console.error('Failed to create JWT via fallback', fetchErr);
+        return reply({ error: 'server error', details: fetchErr.message }, 500);
+      }
     }
 
     // Consume claim
