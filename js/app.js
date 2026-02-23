@@ -106,13 +106,14 @@ const App = {
                                 window.location.href = window.location.pathname;
                                 return;
                             } else {
-                                    if (parsed && parsed.linked) {
-                                        // Server linked this scanner UID to the member; reload so DB lookup picks it up
-                                        window.location.href = window.location.pathname;
-                                        return;
-                                    } else {
-                                console.warn('Claim exchange completed but no jwt returned:', parsed);
-                                alert('Claim exchange failed: ' + (parsed?.error || 'no jwt returned'));
+                                if (parsed && parsed.linked) {
+                                    // Server linked this scanner UID to the member; reload so DB lookup picks it up
+                                    window.location.href = window.location.pathname;
+                                    return;
+                                } else {
+                                    console.warn('Claim exchange completed but no jwt returned:', parsed);
+                                    alert('Claim exchange failed: ' + (parsed?.error || 'no jwt returned'));
+                                }
                             }
                         }
                     } else {
