@@ -294,11 +294,8 @@ window.showClaimQR = async (memberId) => {
                 <h3 style="margin-top:0; color:${modalText}">Share Identification</h3>
                 <p style="margin:0.5rem 0 1rem 0; color:${modalSecondaryText}; font-size:0.9rem">Scan this code on a new device to link your account</p>
                 <div id="qr-code" style="margin:16px auto; display:flex; justify-content:center;"></div>
-                <p style="margin:12px 0 8px 0; font-size:0.85rem; color:${modalSecondaryText}; word-break:break-all;">${claimUrl}</p>
-                <div style="display:flex; gap:8px; align-items:center; justify-content:center; margin-top:12px;">
-                  <input id="claim-link-input" style="flex:1; padding:8px 12px; border:1px solid ${modalInputBorder}; border-radius:6px; background:${modalInputBg}; color:${modalText}; font-size:0.85rem;" readonly />
-                  <button id="claim-copy-btn" class="btn-primary" style="white-space:nowrap">Copy</button>
-                </div>
+                <input id="claim-link-input" style="flex:1; padding:8px 12px; border:1px solid ${modalInputBorder}; border-radius:6px; background:${modalInputBg}; color:${modalText}; font-size:0.85rem;" readonly value="${claimUrl}" />
+                <button id="claim-copy-btn" class="btn-primary" style="white-space:nowrap">Copy</button>
               </div>
             </div>
         `;

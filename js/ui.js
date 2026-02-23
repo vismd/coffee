@@ -32,9 +32,9 @@ const UI = {
                 // THIS IS THE MISSING PIECE:
                 return `
                         <div class="card admin-card fade-in">
-                                <div class="group-pot" style="width:100%; text-align:left; padding:16px 20px; box-sizing:border-box;">
-                                        <p style="margin:0; font-size:0.9rem; color:#666">Collective Pot</p>
-                                        <h2 style="margin:6px 0 0 0">€${groupFunds.toFixed(2)}</h2>
+                                <div class="group-pot">
+                                    <p>Collective Pot</p>
+                                    <h2>€${(global.group_funds || 0).toFixed(2)}</h2>
                                 </div>
                                 <div style="margin-top:12px; display:flex; gap:10px;">
                                     <button class="btn-primary" onclick="window.showExpenseModal()">Record Group Purchase</button>
