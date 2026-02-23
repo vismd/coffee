@@ -476,11 +476,12 @@ body.dark-mode .stat-label {
 
 .activity-item {
     display: flex;
-    align-items: flex-start;
-    gap: 1rem;
-    padding: 1rem 0;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
     border-bottom: 1px solid var(--border);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
+    flex-wrap: wrap;
 }
 
 .activity-item:last-child {
@@ -489,59 +490,44 @@ body.dark-mode .stat-label {
 
 .activity-item.user-activity {
     background: rgba(73, 126, 167, 0.05);
-    padding: 1rem;
+    padding: 0.75rem;
     border-radius: 8px;
     border-bottom: none;
     margin-bottom: 0.5rem;
 }
 
 .activity-emoji {
-    font-size: 1.3rem;
+    font-size: 1.2rem;
     flex-shrink: 0;
-}
-
-.activity-details {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
 }
 
 .activity-user {
     font-weight: 600;
     color: var(--text);
+    flex-shrink: 0;
 }
 
-.activity-type {
-    font-size: 0.8rem;
+.activity-desc {
     color: #636e72;
-    text-transform: uppercase;
+    flex: 1;
+    min-width: 150px;
 }
 
-body.dark-mode .activity-type {
-    color: #a0a0a0;
-}
-
-.activity-message {
-    font-size: 0.85rem;
-    color: #636e72;
-    font-style: italic;
-}
-
-body.dark-mode .activity-message {
+body.dark-mode .activity-desc {
     color: #a0a0a0;
 }
 
 .activity-time {
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: #8e8e93;
     white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .activity-amount {
     font-weight: 600;
     white-space: nowrap;
-    margin-left: 1rem;
+    flex-shrink: 0;
 }
 
 .activity-amount.positive {

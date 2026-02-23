@@ -91,7 +91,7 @@ const Analytics = {
         const ctx = document.getElementById('userCoffeeChart');
         if (!ctx) return;
 
-        // Calculate user's coffee consumption trend (last 30 days, grouped by week)
+        // Calculate user's coffee consumption by weekday (last 30 days)
         const today = new Date();
         const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
         
@@ -101,48 +101,36 @@ const Analytics = {
             new Date(log.timestamp) >= thirtyDaysAgo
         );
 
-        // Group by week
-        const weeks = [{}, {}, {}, {}];
-        const weekLabels = [];
-        for (let i = 3; i >= 0; i--) {
-            const weekStart = new Date(today.getTime() - i * 7 * 24 * 60 * 60 * 1000);
-            const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
-            weekLabels.push(`Week ${4 - i}`);
-        }
+        // Group by weekday
+        const weekdayData = [0, 0, 0, 0, 0, 0, 0]; // Sun-Sat
+        const weekdayCount = [0, 0, 0, 0, 0, 0, 0];
+        const weekdayLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
         userLogs.forEach(log => {
             const logDate = new Date(log.timestamp);
-            const weekIndex = Math.floor((today.getTime() - logDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
-            if (weekIndex >= 0 && weekIndex < 4) {
-                weeks[3 - weekIndex]++;
-            }
+            const dayOfWeek = logDate.getDay();
+            weekdayData[dayOfWeek]++;
+            weekdayCount[dayOfWeek]++;
         });
 
-        const data = [
-            weeks[0] || 0,
-            weeks[1] || 0,
-            weeks[2] || 0,
-            weeks[3] || 0
-        ];
+        // Calculate averages
+        const avgData = weekdayData.map((total, index) => {
+            const weeksInPeriod = 4; // Approximate
+            return (total / weeksInPeriod).toFixed(1);
+        });
 
         const colors = this.getChartColors();
 
         this.charts.userCoffee = new Chart(ctx, {
-            type: 'line',
+            type: 'bar',
             data: {
-                labels: weekLabels,
+                labels: weekdayLabels,
                 datasets: [{
-                    label: 'Coffees Per Week',
-                    data: data,
+                    label: 'Avg Coffees Per Weekday',
+                    data: avgData,
+                    backgroundColor: colors.backgroundColor[0],
                     borderColor: colors.backgroundColor[0],
-                    backgroundColor: colors.backgroundColor[0] + '20',
-                    borderWidth: 3,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 6,
-                    pointBackgroundColor: colors.backgroundColor[0],
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 2
+                    borderWidth: 1
                 }]
             },
             options: {
@@ -162,7 +150,7 @@ const Analytics = {
                     },
                     x: {
                         ticks: { color: colors.textColor },
-                        grid: { color: colors.gridColor }
+                        grid: { display: false }
                     }
                 }
             }
@@ -227,30 +215,32 @@ const Analytics = {
         const ctx = document.getElementById('groupPurchasesChart');
         if (!ctx) return;
 
-        // Get purchases over time (last 30 days)
+        // Get purchases over time (last 12 months)
         const today = new Date();
-        const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const twelveMonthsAgo = new Date(today.getFullYear() - 1, today.getMonth(), 1);
 
-        const purchasesByDay = {};
+        const purchasesByMonth = {};
         const labels = [];
-        for (let i = 0; i < 30; i++) {
-            const date = new Date(thirtyDaysAgo.getTime() + i * 24 * 60 * 60 * 1000);
-            const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            labels.push(dateStr);
-            purchasesByDay[dateStr] = 0;
+        
+        // Initialize months
+        for (let i = 11; i >= 0; i--) {
+            const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
+            const monthStr = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+            labels.push(monthStr);
+            purchasesByMonth[monthStr] = 0;
         }
 
         this.groupLogs.forEach(log => {
             const logDate = new Date(log.timestamp);
-            if (logDate >= thirtyDaysAgo) {
-                const dateStr = logDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                if (purchasesByDay.hasOwnProperty(dateStr)) {
-                    purchasesByDay[dateStr] += Math.abs(log.amount);
+            if (logDate >= twelveMonthsAgo) {
+                const monthStr = logDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+                if (purchasesByMonth.hasOwnProperty(monthStr)) {
+                    purchasesByMonth[monthStr] += Math.abs(log.amount);
                 }
             }
         });
 
-        const data = labels.map(label => purchasesByDay[label]);
+        const data = labels.map(label => purchasesByMonth[label]);
         const colors = this.getChartColors();
 
         this.charts.groupPurchases = new Chart(ctx, {
@@ -258,7 +248,7 @@ const Analytics = {
             data: {
                 labels: labels,
                 datasets: [{
-                    label: 'Daily Spending (€)',
+                    label: 'Monthly Spending (€)',
                     data: data,
                     borderColor: colors.backgroundColor[1],
                     backgroundColor: colors.backgroundColor[1] + '30',
@@ -399,15 +389,13 @@ const Analytics = {
             
             const typeEmoji = log.type === 'COFFEE' ? '☕' : '💰';
             const isUser = log.userId === this.userMember.$id;
+            const message = log.message ? ` - ${log.message}` : '';
             
             return `
                 <div class="activity-item ${isUser ? 'user-activity' : ''}">
                     <span class="activity-emoji">${typeEmoji}</span>
-                    <div class="activity-details">
-                        <span class="activity-user"><b>${log.userName}</b></span>
-                        <span class="activity-type">${log.type}</span>
-                        ${log.message ? `<span class="activity-message">${log.message}</span>` : ''}
-                    </div>
+                    <span class="activity-user"><b>${log.userName}</b></span>
+                    <span class="activity-desc">${log.type}${message}</span>
                     <span class="activity-time">${dateStr}</span>
                     <span class="activity-amount ${log.amount < 0 ? 'negative' : 'positive'}">
                         ${log.amount < 0 ? '' : '+'}€${Math.abs(log.amount).toFixed(2)}
@@ -428,8 +416,38 @@ const Analytics = {
             log.type === 'COFFEE'
         );
 
+        // Calculate metrics
         const totalCost = userLogs.reduce((sum, log) => sum + Math.abs(log.amount), 0);
-        const avgPerWeek = (this.userMember.total_coffees / 4.29).toFixed(1); // Average weeks in a month
+        const avgPerWeek = (this.userMember.total_coffees / 4.29).toFixed(1);
+
+        // Max coffees in one day
+        const coffeesByDay = {};
+        userLogs.forEach(log => {
+            const date = new Date(log.timestamp).toLocaleDateString();
+            coffeesByDay[date] = (coffeesByDay[date] || 0) + 1;
+        });
+        const maxPerDay = Math.max(...Object.values(coffeesByDay), 0);
+
+        // Max coffees in one week
+        const today = new Date();
+        const coffeesByWeek = [0, 0, 0, 0];
+        userLogs.forEach(log => {
+            const logDate = new Date(log.timestamp);
+            const weekIndex = Math.floor((today.getTime() - logDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
+            if (weekIndex >= 0 && weekIndex < 4) {
+                coffeesByWeek[3 - weekIndex]++;
+            }
+        });
+        const maxPerWeek = Math.max(...coffeesByWeek, 0);
+
+        // Max coffees in one month
+        const coffeesByMonth = {};
+        userLogs.forEach(log => {
+            const logDate = new Date(log.timestamp);
+            const monthStr = logDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            coffeesByMonth[monthStr] = (coffeesByMonth[monthStr] || 0) + 1;
+        });
+        const maxPerMonth = Math.max(...Object.values(coffeesByMonth), 0);
 
         container.innerHTML = `
             <div class="stats-grid">
@@ -442,8 +460,16 @@ const Analytics = {
                     <span class="stat-value">€${totalCost.toFixed(2)}</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-label">Per Week Avg</span>
-                    <span class="stat-value">${avgPerWeek}</span>
+                    <span class="stat-label">Max Per Day</span>
+                    <span class="stat-value">${maxPerDay}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Max Per Week</span>
+                    <span class="stat-value">${maxPerWeek}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Max Per Month</span>
+                    <span class="stat-value">${maxPerMonth}</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-label">Current Balance</span>
