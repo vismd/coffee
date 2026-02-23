@@ -511,6 +511,9 @@ window.showCoffeeBeanModal = () => {
                     <p style="margin:5px 0 0 0;">Price/cup: <span id="price-per-cup">€0.00</span> <span id="grams-info"></span></p>
                 </div>
                 
+                <label style="display:block; margin-top:10px; font-size:0.8rem; color:${colors.secondaryText};">Optional: Receipt Photo</label>
+                <input type="file" id="bean-file" accept="image/*" style="width:100%; margin-bottom:20px; color:${colors.inputText};">
+                
                 <div style="display:flex; gap:10px;">
                     <button onclick="window.submitCoffeeBeans()" class="btn-primary" style="flex:2">Save</button>
                     <button onclick="document.getElementById('bean-modal').remove()" class="btn-cancel" style="flex:1">Cancel</button>
@@ -545,9 +548,11 @@ window.showCoffeeBeanModal = () => {
 window.submitCoffeeBeans = async () => {
     const amountInput = document.getElementById('bean-amount');
     const gramsInput = document.getElementById('bean-grams');
+    const fileInput = document.getElementById('bean-file');
 
     const amount = parseFloat(amountInput.value);
     const grams = parseFloat(gramsInput.value);
+    const file = fileInput.files[0];
 
     if (!amount || amount <= 0 || !grams || grams <= 0) {
         alert("Please enter valid amount and weight.");
@@ -559,7 +564,7 @@ window.submitCoffeeBeans = async () => {
         saveBtn.innerText = "Saving...";
         saveBtn.disabled = true;
 
-        await DB.recordCoffeeBeanPurchase(amount, grams);
+        await DB.recordCoffeeBeanPurchase(amount, grams, file);
         
         alert("Coffee beans purchased! Price per cup updated.");
         location.reload();

@@ -43,7 +43,11 @@ const DB = {
     // Fetch latest 10 group (EXPENSE) logs only
     async getGroupLogs() {
         const result = await databases.listDocuments(DB_ID, COLL_LOGS, [
-            Appwrite.Query.equal('type', 'EXPENSE'),
+            //type is EXPENSE or BEANS
+            Appwrite.Query.or(
+                Appwrite.Query.equal('type', 'EXPENSE'),
+                Appwrite.Query.equal('type', 'BEANS')
+            ),
             Appwrite.Query.orderDesc('timestamp'),
             Appwrite.Query.limit(10)
         ]);
@@ -146,14 +150,31 @@ const DB = {
         }
     },
 
-    // Record coffee bean purchase
-    async recordCoffeeBeanPurchase(amount, grams, message = "") {
+    // Record coffee bean purchase with optional receipt upload
+    async recordCoffeeBeanPurchase(amount, grams, file = null) {
         try {
+            let fileId = null;
+            
+            // 1. Upload receipt file if provided
+            if (file) {
+                try {
+                    const uploadedFile = await storage.createFile(
+                        BUCKET_ID,
+                        Appwrite.ID.unique(),
+                        file
+                    );
+                    fileId = uploadedFile.$id;
+                } catch (storageError) {
+                    console.error("Receipt upload failed:", storageError);
+                    throw new Error("Receipt upload failed. Purchase not recorded.");
+                }
+            }
+
             const pricePerGram = amount / grams;
             const config = await this.getGlobalConfig();
             const pricePerCup = pricePerGram * config.grams_per_cup;
 
-            // Update global funds and pricing info
+            // 2. Update global funds and pricing info
             const global = await databases.getDocument(DB_ID, COLL_GLOBAL, 'main');
             await databases.updateDocument(DB_ID, COLL_GLOBAL, 'main', {
                 group_funds: global.group_funds - amount,
@@ -161,9 +182,9 @@ const DB = {
                 coffee_price_per_gram: pricePerGram
             });
 
-            // Log as EXPENSE so it shows in group logs
+            // 3. Log as BEANS so it shows in group logs
             const logMessage = `🫘 Coffee Beans: ${grams}g @ €${(pricePerGram * 1000).toFixed(2)}/kg (€${pricePerCup.toFixed(2)}/cup)`;
-            return await this.logAction('BEANS', -amount, 'ADMIN', 'System', logMessage);
+            return await this.logAction('BEANS', -amount, 'ADMIN', 'System', logMessage, fileId);
         } catch (error) {
             console.error("Error recording bean purchase:", error);
             throw error;
