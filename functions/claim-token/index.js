@@ -5,7 +5,9 @@ const sdk = require('node-appwrite');
 // a predictable marker so the execution output is still visible.
 function sendJson(res, body, status = 200) {
   if (res && typeof res.json === 'function') {
-    return res.json(body, status);
+    // res.json may return something the runtime expects; return an object for consistency
+    const out = res.json(body, status);
+    return out === undefined ? { status, body } : out;
   }
 
   // Older or custom runtimes may provide res.end
@@ -13,12 +15,15 @@ function sendJson(res, body, status = 200) {
     try {
       res.statusCode = status;
     } catch (e) {}
-    return res.end(JSON.stringify(body));
+    // write and flush the response then return a consistent object
+    try { res.end(JSON.stringify(body)); } catch (e) { /* ignore */ }
+    return { status, body };
   }
 
   // Fallback: print to stdout with a clear marker for logs
   console.log('FUNCTION_FALLBACK_RESPONSE', JSON.stringify({ status, body }));
-  return;
+  // Return a value the runtime can observe to avoid "Return statement missing" errors
+  return { status, body };
 }
 
 module.exports = async function (req, res) {
