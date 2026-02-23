@@ -23,7 +23,7 @@ const UI = {
                     €${m.balance.toFixed(2)}
                 </span>
                 <div style="display:flex; gap:6px; align-items:center;">
-                  <button class="btn-qr-small" title="Show claim QR" onclick="window.showClaimQR('${m.$id}')">📱</button>
+                  <button class="btn-qr" title="Show claim QR" onclick="window.showClaimQR('${m.$id}')">📱</button>
                   <button class="btn-topup" onclick="window.showAddFunds('${m.$id}')">+</button>
                 </div>
             </div>
