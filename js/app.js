@@ -540,7 +540,6 @@ window.showCoffeeBeanModal = () => {
     gramsInput.addEventListener('input', updateCalculation);
     updateCalculation();
 };
-};
 
 window.submitCoffeeBeans = async () => {
     const amountInput = document.getElementById('bean-amount');
