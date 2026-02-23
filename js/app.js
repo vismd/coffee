@@ -207,15 +207,29 @@ const App = {
         // Render personal UI
         app.innerHTML = UI.renderUserStats(this.userMember);
 
-        // Check for Admin status to show extra panels
+        // Show a compact collective pot and recent group activity on main page
+        try {
+            const global = await databases.getDocument(DB_ID, COLL_GLOBAL, 'main');
+            const groupLogs = await DB.getGroupLogs();
+            const potHtml = `
+                <div class="card group-pot-card">
+                    <div class="group-pot">
+                        <p>Collective Pot</p>
+                        <h2>€${(global.group_funds || 0).toFixed(2)}</h2>
+                    </div>
+                </div>`;
+            app.innerHTML += potHtml;
+            app.innerHTML += UI.renderLogs(groupLogs);
+        } catch (e) {
+            console.warn('Failed to render group pot on main page', e);
+        }
+
+        // If admin, show a button to open the Admin view (separate, gated)
         const isAdmin = await Auth.checkAdminStatus();
         if (isAdmin) {
-            const members = await DB.getAllMembers();
-            const global = await databases.getDocument(DB_ID, COLL_GLOBAL, 'main');
-            const logs = await DB.getLogs(); // If you've added this function
-            
-            app.innerHTML += UI.renderAdminPanel(members, global.group_funds);
-            app.innerHTML += UI.renderLogs(logs);
+            const adminBtn = document.createElement('div');
+            adminBtn.innerHTML = `<div style="margin-top:12px"><button class="btn-primary" onclick="window.showAdminView()">Open Admin Panel</button></div>`;
+            app.appendChild(adminBtn);
         }
     }
 };
@@ -421,4 +435,27 @@ window.toggleTheme = () => {
     
     const themeToggle = document.getElementById('theme-toggle');
     themeToggle.textContent = isDarkMode ? '☀️' : '🌙';
+};
+
+window.showAdminView = async () => {
+    // Ensure only admins can open this
+    const isAdmin = await Auth.checkAdminStatus();
+    if (!isAdmin) {
+        alert('Access denied: Admins only');
+        return;
+    }
+
+    try {
+        const app = document.getElementById('app');
+        const members = await DB.getAllMembers();
+        const global = await databases.getDocument(DB_ID, COLL_GLOBAL, 'main');
+        const logs = await DB.getLogs();
+
+        app.innerHTML = '';
+        app.innerHTML += UI.renderAdminPanel(members, global.group_funds || 0);
+        app.innerHTML += UI.renderLogs(logs);
+    } catch (e) {
+        console.error('Failed to open admin view', e);
+        alert('Could not open admin panel. See console for details.');
+    }
 };

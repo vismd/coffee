@@ -40,6 +40,16 @@ const DB = {
         return result.documents;
     },
 
+    // Fetch latest 10 group (EXPENSE) logs only
+    async getGroupLogs() {
+        const result = await databases.listDocuments(DB_ID, COLL_LOGS, [
+            Appwrite.Query.equal('type', 'EXPENSE'),
+            Appwrite.Query.orderDesc('timestamp'),
+            Appwrite.Query.limit(10)
+        ]);
+        return result.documents;
+    },
+
     // Record a coffee (+1 drink, -price from user balance)
     async registerCoffee(memberDoc, price) {
         const newBalance = memberDoc.balance - price;
