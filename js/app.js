@@ -67,7 +67,7 @@ const App = {
 
                         // Fallback: some runtimes write to stdout/logs. Try known fields.
                         if (!rawResponse) {
-                            const candidates = [check.stdout, check.output, check.logs, check.responseOutput, check.stdoutLogs];
+                            const candidates = [check.response, check.responseBody, check.responseText, check.stdout, check.output, check.logs, check.responseOutput, check.stdoutLogs];
                             for (const c of candidates) {
                                 if (!c) continue;
                                 const s = (typeof c === 'string') ? c : JSON.stringify(c);
