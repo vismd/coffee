@@ -34,6 +34,21 @@ module.exports = async function (req, res) {
   const reply = (body, status) => sendJson(res, body, status);
 
   try {
+    // Diagnostic: log incoming request shape (avoid logging large or sensitive fields)
+    try {
+      console.log('REQ_KEYS', Object.keys(req || {}).slice(0,50));
+      // Print a small snapshot of common fields that may contain payload
+      const snap = {
+        payloadType: typeof (req && req.payload),
+        bodyType: typeof (req && req.body),
+        argsType: typeof (req && req.args),
+        variablesType: typeof (req && req.variables),
+        queryType: typeof (req && req.query)
+      };
+      console.log('REQ_SNAPSHOT', JSON.stringify(snap));
+    } catch (e) {
+      console.warn('Failed to snapshot request shape', e);
+    }
     // Support multiple runtime shapes: req.payload (string), req.body, req.variables, req.args, req.query
     let payload = {};
     try {
@@ -54,6 +69,15 @@ module.exports = async function (req, res) {
     }
 
     const token = payload.token || payload.claim_token || req?.token || req?.claim_token;
+
+    console.log('EXTRACTED_TOKEN', token ? '[REDACTED]' : null);
+
+    // Log environment configuration (names only) to ensure we're pointing to the right collections
+    try {
+      console.log('ENV', JSON.stringify({ DB_ID: !!process.env.DB_ID, CLAIMS_COLLECTION: process.env.CLAIMS_COLLECTION || 'claims', MEMBERS_COLLECTION: process.env.MEMBERS_COLLECTION || 'members' }));
+    } catch (e) {
+      console.warn('Failed to log env snapshot', e);
+    }
     if (!token) return reply({ error: 'missing token' }, 400);
 
     const client = new sdk.Client()
@@ -65,7 +89,15 @@ module.exports = async function (req, res) {
     const account = new sdk.Account(client);
 
     // Read claim doc
-    const claim = await databases.getDocument(process.env.DB_ID, process.env.CLAIMS_COLLECTION || 'claims', token);
+    // Read claim doc
+    let claim;
+    try {
+      claim = await databases.getDocument(process.env.DB_ID, process.env.CLAIMS_COLLECTION || 'claims', token);
+      console.log('CLAIM_DOC', JSON.stringify({ id: claim.$id || null, memberId: claim.memberId || null, expiresAt: claim.expiresAt || null }));
+    } catch (e) {
+      console.error('Failed to read claim document', e);
+      return reply({ error: 'invalid token', details: e.message }, 400);
+    }
     if (!claim) return reply({ error: 'invalid token' }, 400);
 
     // Expiry check
@@ -74,11 +106,19 @@ module.exports = async function (req, res) {
       return reply({ error: 'token expired' }, 400);
     }
 
-    const memberDoc = await databases.getDocument(process.env.DB_ID, process.env.MEMBERS_COLLECTION || 'members', claim.memberId);
+    let memberDoc;
+    try {
+      memberDoc = await databases.getDocument(process.env.DB_ID, process.env.MEMBERS_COLLECTION || 'members', claim.memberId);
+      console.log('MEMBER_DOC', JSON.stringify({ id: memberDoc.$id || null, appwrite_uid: !!(memberDoc && memberDoc.appwrite_uid) }));
+    } catch (e) {
+      console.error('Failed to read member document', e);
+      return reply({ error: 'no linked user', details: e.message }, 400);
+    }
     if (!memberDoc || !memberDoc.appwrite_uid) return reply({ error: 'no linked user' }, 400);
 
     // Create JWT for that user
-    const jwtResp = await account.createJWT(memberDoc.appwrite_uid);
+  const jwtResp = await account.createJWT(memberDoc.appwrite_uid);
+  console.log('JWT_CREATED', !!(jwtResp && jwtResp.jwt));
 
     // Consume claim
     await databases.deleteDocument(process.env.DB_ID, process.env.CLAIMS_COLLECTION || 'claims', token).catch(()=>{});
