@@ -134,10 +134,10 @@ module.exports = async function (req, res) {
           let data = null;
           try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
           if (resp.ok && data) {
-            console.info('JWT/session created successfully from:', url);
+            console.info('SUCCESS - JWT/session created from:', { url, responseKeys: Object.keys(data), responseBody: data });
             return data;
           }
-          console.warn('Endpoint attempt failed', { url, status: resp.status });
+          console.warn('Endpoint attempt failed', { url, status: resp.status, response: data || text });
         } catch (e) {
           console.warn('Fetch error for', url, e);
         }
