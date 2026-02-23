@@ -335,7 +335,7 @@ window.showClaimQR = async (memberId) => {
         const baseUrl = window.location.origin + window.location.pathname;
 
         let claimUrl;
-        if (member && member.appwrite_uid) {
+        if (false && member && member.appwrite_uid) { // TEMP disabled
             // Member already linked to an Appwrite user: create a server-backed short-lived claim token
             const claim = await databases.createDocument(
                 DB_ID,
