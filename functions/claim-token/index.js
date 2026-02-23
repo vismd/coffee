@@ -34,41 +34,44 @@ module.exports = async function (req, res) {
   const reply = (body, status) => sendJson(res, body, status);
 
   try {
+    // Some runtimes wrap the real request in a `req` property (we saw a wrapper object). Normalize it.
+    const incoming = (req && req.req) ? req.req : req;
+
     // Diagnostic: log incoming request shape (avoid logging large or sensitive fields)
     try {
-      console.log('REQ_KEYS', Object.keys(req || {}).slice(0,50));
+      console.log('REQ_KEYS', Object.keys(incoming || {}).slice(0,50));
       // Print a small snapshot of common fields that may contain payload
       const snap = {
-        payloadType: typeof (req && req.payload),
-        bodyType: typeof (req && req.body),
-        argsType: typeof (req && req.args),
-        variablesType: typeof (req && req.variables),
-        queryType: typeof (req && req.query)
+        payloadType: typeof (incoming && incoming.payload),
+        bodyType: typeof (incoming && incoming.body),
+        argsType: typeof (incoming && incoming.args),
+        variablesType: typeof (incoming && incoming.variables),
+        queryType: typeof (incoming && incoming.query)
       };
       console.log('REQ_SNAPSHOT', JSON.stringify(snap));
     } catch (e) {
       console.warn('Failed to snapshot request shape', e);
     }
-    // Support multiple runtime shapes: req.payload (string), req.body, req.variables, req.args, req.query
+    // Support multiple runtime shapes: incoming.payload (string), incoming.body, incoming.variables, incoming.args, incoming.query
     let payload = {};
     try {
-      if (req && req.payload) {
-        payload = JSON.parse(req.payload || '{}');
-      } else if (req && req.body) {
-        payload = (typeof req.body === 'string') ? JSON.parse(req.body || '{}') : req.body;
-      } else if (req && req.args) {
-        payload = (typeof req.args === 'string') ? JSON.parse(req.args || '{}') : req.args;
-      } else if (req && req.variables) {
-        payload = req.variables;
-      } else if (req && req.query) {
-        payload = req.query;
+      if (incoming && incoming.payload) {
+        payload = JSON.parse(incoming.payload || '{}');
+      } else if (incoming && incoming.body) {
+        payload = (typeof incoming.body === 'string') ? JSON.parse(incoming.body || '{}') : incoming.body;
+      } else if (incoming && incoming.args) {
+        payload = (typeof incoming.args === 'string') ? JSON.parse(incoming.args || '{}') : incoming.args;
+      } else if (incoming && incoming.variables) {
+        payload = incoming.variables;
+      } else if (incoming && incoming.query) {
+        payload = incoming.query;
       }
     } catch (e) {
       console.warn('Failed to parse incoming payload shape, continuing with empty payload', e);
       payload = {};
     }
 
-    const token = payload.token || payload.claim_token || req?.token || req?.claim_token;
+    const token = payload.token || payload.claim_token || incoming?.token || incoming?.claim_token;
 
     console.log('EXTRACTED_TOKEN', token ? '[REDACTED]' : null);
 
