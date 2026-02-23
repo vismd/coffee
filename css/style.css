@@ -115,6 +115,13 @@ nav {
     transform: scale(0.95);
 }
 
+.btn-qr svg {
+    width: 18px;
+    height: 18px;
+    fill: #ffffff;
+    display: block;
+}
+
 .stat-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;

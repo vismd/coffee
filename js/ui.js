@@ -2,9 +2,18 @@ const UI = {
     renderUserStats(member, coffeePrice = 0.50) {
         return `
             <div class="card welcome-card">
-                <div class="welcome-header">
+                    <div class="welcome-header">
                     <h2>Welcome, ${member.name}</h2>
-                    <button class="btn-qr" onclick="window.showClaimQR('${member.$id}')" title="Share identification code">📱</button>
+                    <button class="btn-qr" onclick="window.showClaimQR('${member.$id}')" title="Share identification code">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                            <rect x="3" y="3" width="6" height="6" />
+                            <rect x="15" y="3" width="6" height="6" />
+                            <rect x="3" y="15" width="6" height="6" />
+                            <rect x="11" y="11" width="2" height="2" />
+                            <rect x="17" y="11" width="2" height="2" />
+                            <rect x="11" y="17" width="2" height="2" />
+                        </svg>
+                    </button>
                 </div>
                 <div class="stat-grid">
                     <div class="stat"><span>Balance</span> <b>€${member.balance.toFixed(2)}</b></div>
@@ -23,7 +32,16 @@ const UI = {
                     €${m.balance.toFixed(2)}
                 </span>
                 <div style="display:flex; gap:6px; align-items:center;">
-                  <button class="btn-qr" title="Show claim QR" onclick="window.showClaimQR('${m.$id}')">📱</button>
+                                    <button class="btn-qr" title="Show claim QR" onclick="window.showClaimQR('${m.$id}')">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                                                <rect x="3" y="3" width="6" height="6" />
+                                                <rect x="15" y="3" width="6" height="6" />
+                                                <rect x="3" y="15" width="6" height="6" />
+                                                <rect x="11" y="11" width="2" height="2" />
+                                                <rect x="17" y="11" width="2" height="2" />
+                                                <rect x="11" y="17" width="2" height="2" />
+                                        </svg>
+                                    </button>
                   <button class="btn-topup" onclick="window.showAddFunds('${m.$id}')">+</button>
                 </div>
             </div>
