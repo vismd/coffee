@@ -59,16 +59,85 @@ const Analytics = {
     },
 
     renderAnalytics() {
+        this.renderMetricsPanel();
         this.renderUserCoffeeChart();
         this.renderGroupCoffeeChart();
         this.renderGroupPurchasesChart();
         this.renderSpendingChart();
         this.renderPurchaseBreakdownChart();
         this.renderActivityFeed();
-        this.renderUserStats();
     },
 
-    getChartColors() {
+    renderMetricsPanel() {
+        const container = document.getElementById('metricsPanel');
+        if (!container) return;
+
+        const userLogs = this.allLogs.filter(log => 
+            log.userId === this.userMember.$id && 
+            log.type === 'COFFEE'
+        );
+
+        // Calculate metrics
+        const totalCost = userLogs.reduce((sum, log) => sum + Math.abs(log.amount), 0);
+
+        // Max coffees in one day
+        const coffeesByDay = {};
+        userLogs.forEach(log => {
+            const date = new Date(log.timestamp).toLocaleDateString();
+            coffeesByDay[date] = (coffeesByDay[date] || 0) + 1;
+        });
+        const maxPerDay = Math.max(...Object.values(coffeesByDay), 0);
+
+        // Max coffees in one week
+        const today = new Date();
+        const coffeesByWeek = [0, 0, 0, 0];
+        userLogs.forEach(log => {
+            const logDate = new Date(log.timestamp);
+            const weekIndex = Math.floor((today.getTime() - logDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
+            if (weekIndex >= 0 && weekIndex < 4) {
+                coffeesByWeek[3 - weekIndex]++;
+            }
+        });
+        const maxPerWeek = Math.max(...coffeesByWeek, 0);
+
+        // Max coffees in one month
+        const coffeesByMonth = {};
+        userLogs.forEach(log => {
+            const logDate = new Date(log.timestamp);
+            const monthStr = logDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            coffeesByMonth[monthStr] = (coffeesByMonth[monthStr] || 0) + 1;
+        });
+        const maxPerMonth = Math.max(...Object.values(coffeesByMonth), 0);
+
+        const balanceClass = this.userMember.balance < 0 ? 'negative' : 'positive';
+
+        container.innerHTML = `
+            <div class="metric-card">
+                <span class="metric-label">Total Coffees</span>
+                <span class="metric-value">${this.userMember.total_coffees}</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Total Spent</span>
+                <span class="metric-value">€${totalCost.toFixed(2)}</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Max Per Day</span>
+                <span class="metric-value">${maxPerDay}</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Max Per Week</span>
+                <span class="metric-value">${maxPerWeek}</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Max Per Month</span>
+                <span class="metric-value">${maxPerMonth}</span>
+            </div>
+            <div class="metric-card">
+                <span class="metric-label">Balance</span>
+                <span class="metric-value ${balanceClass}">€${this.userMember.balance.toFixed(2)}</span>
+            </div>
+        `;
+    },
         const isDarkMode = document.body.classList.contains('dark-mode');
         return {
             backgroundColor: [
@@ -382,103 +451,38 @@ const Analytics = {
             const date = new Date(log.timestamp);
             const dateStr = date.toLocaleDateString('en-US', { 
                 month: 'short', 
-                day: 'numeric',
+                day: 'numeric'
+            });
+            const timeStr = date.toLocaleTimeString('en-US', {
                 hour: '2-digit',
                 minute: '2-digit'
             });
             
             const typeEmoji = log.type === 'COFFEE' ? '☕' : '💰';
             const isUser = log.userId === this.userMember.$id;
-            const message = log.message ? ` - ${log.message}` : '';
+            const message = log.message ? log.message : '';
             
             return `
                 <div class="activity-item ${isUser ? 'user-activity' : ''}">
                     <span class="activity-emoji">${typeEmoji}</span>
-                    <span class="activity-user"><b>${log.userName}</b></span>
-                    <span class="activity-desc">${log.type}${message}</span>
-                    <span class="activity-time">${dateStr}</span>
-                    <span class="activity-amount ${log.amount < 0 ? 'negative' : 'positive'}">
-                        ${log.amount < 0 ? '' : '+'}€${Math.abs(log.amount).toFixed(2)}
-                    </span>
+                    <div class="activity-content">
+                        <div class="activity-header">
+                            <span class="activity-user">${log.userName}</span>
+                            <span class="activity-type">${log.type}</span>
+                        </div>
+                        ${message ? `<div class="activity-desc">${message}</div>` : ''}
+                        <div class="activity-meta">
+                            <span class="activity-time">${dateStr} at ${timeStr}</span>
+                            <span class="activity-amount ${log.amount < 0 ? 'negative' : 'positive'}">
+                                ${log.amount < 0 ? '−' : '+'}€${Math.abs(log.amount).toFixed(2)}
+                            </span>
+                        </div>
+                    </div>
                 </div>
             `;
         }).join('');
 
         container.innerHTML = html || '<p>No activity yet</p>';
-    },
-
-    renderUserStats() {
-        const container = document.getElementById('userStatsText');
-        if (!container) return;
-
-        const userLogs = this.allLogs.filter(log => 
-            log.userId === this.userMember.$id && 
-            log.type === 'COFFEE'
-        );
-
-        // Calculate metrics
-        const totalCost = userLogs.reduce((sum, log) => sum + Math.abs(log.amount), 0);
-        const avgPerWeek = (this.userMember.total_coffees / 4.29).toFixed(1);
-
-        // Max coffees in one day
-        const coffeesByDay = {};
-        userLogs.forEach(log => {
-            const date = new Date(log.timestamp).toLocaleDateString();
-            coffeesByDay[date] = (coffeesByDay[date] || 0) + 1;
-        });
-        const maxPerDay = Math.max(...Object.values(coffeesByDay), 0);
-
-        // Max coffees in one week
-        const today = new Date();
-        const coffeesByWeek = [0, 0, 0, 0];
-        userLogs.forEach(log => {
-            const logDate = new Date(log.timestamp);
-            const weekIndex = Math.floor((today.getTime() - logDate.getTime()) / (7 * 24 * 60 * 60 * 1000));
-            if (weekIndex >= 0 && weekIndex < 4) {
-                coffeesByWeek[3 - weekIndex]++;
-            }
-        });
-        const maxPerWeek = Math.max(...coffeesByWeek, 0);
-
-        // Max coffees in one month
-        const coffeesByMonth = {};
-        userLogs.forEach(log => {
-            const logDate = new Date(log.timestamp);
-            const monthStr = logDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-            coffeesByMonth[monthStr] = (coffeesByMonth[monthStr] || 0) + 1;
-        });
-        const maxPerMonth = Math.max(...Object.values(coffeesByMonth), 0);
-
-        container.innerHTML = `
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <span class="stat-label">Total Coffees</span>
-                    <span class="stat-value">${this.userMember.total_coffees}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Total Spent</span>
-                    <span class="stat-value">€${totalCost.toFixed(2)}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Max Per Day</span>
-                    <span class="stat-value">${maxPerDay}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Max Per Week</span>
-                    <span class="stat-value">${maxPerWeek}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Max Per Month</span>
-                    <span class="stat-value">${maxPerMonth}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Current Balance</span>
-                    <span class="stat-value ${this.userMember.balance < 0 ? 'negative' : 'positive'}">
-                        €${this.userMember.balance.toFixed(2)}
-                    </span>
-                </div>
-            </div>
-        `;
     }
 };
 
