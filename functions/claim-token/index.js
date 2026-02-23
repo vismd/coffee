@@ -94,12 +94,39 @@ module.exports = async function (req, res) {
     // Read claim doc
     // Read claim doc
     let claim;
+    const collName = process.env.CLAIMS_COLLECTION || 'claims';
     try {
-      claim = await databases.getDocument(process.env.DB_ID, process.env.CLAIMS_COLLECTION || 'claims', token);
+      console.log('ATTEMPT_GET_DOCUMENT', JSON.stringify({ db: String(process.env.DB_ID).slice(-8), collection: collName, tokenLength: String(token).length, tokenSample: String(token).slice(0,8) }));
+      claim = await databases.getDocument(process.env.DB_ID, collName, token);
       console.log('CLAIM_DOC', JSON.stringify({ id: claim.$id || null, memberId: claim.memberId || null, expiresAt: claim.expiresAt || null }));
     } catch (e) {
       console.error('Failed to read claim document', e);
-      return reply({ error: 'invalid token', details: e.message }, 400);
+      // Known SDK issue: some runtimes throw "request cannot have request body" for GET via SDK
+      if (e && typeof e.message === 'string' && e.message.includes('request cannot have request body')) {
+        try {
+          // Fallback: call Appwrite REST API directly using fetch (Node 18+ runtime)
+          const endpoint = (process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
+          const url = `${endpoint}/databases/${process.env.DB_ID}/collections/${collName}/documents/${token}`;
+          console.log('FALLBACK_FETCH_URL', url);
+          const fetchResp = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'X-Appwrite-Project': process.env.APPWRITE_PROJECT,
+              'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
+              'Content-Type': 'application/json'
+            }
+          });
+          const data = await fetchResp.json();
+          if (!fetchResp.ok) throw new Error(`fetch failed: ${fetchResp.status} ${JSON.stringify(data)}`);
+          claim = data;
+          console.log('CLAIM_DOC_FALLBACK', JSON.stringify({ id: claim.$id || null, memberId: claim.memberId || null, expiresAt: claim.expiresAt || null }));
+        } catch (fetchErr) {
+          console.error('Fallback fetch failed', fetchErr);
+          return reply({ error: 'invalid token', details: fetchErr.message }, 400);
+        }
+      } else {
+        return reply({ error: 'invalid token', details: e.message }, 400);
+      }
     }
     if (!claim) return reply({ error: 'invalid token' }, 400);
 
