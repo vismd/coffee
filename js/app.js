@@ -20,7 +20,7 @@ const App = {
             // 2a. If we have a server-backed claim_token, exchange it for a JWT via Cloud Function
             if (claimToken) {
                 try {
-                    const exec = await functions.createExecution(CLAIM_FUNCTION_ID, JSON.stringify({ token: claimToken }));
+                    const exec = await functions.createExecution(CLAIM_FUNCTION_ID, JSON.stringify({ token: claimToken, scannerUid: sessionUser.$id }));
 
                     // Helpful debug: log execution id and snapshot of likely payload fields so we can inspect what was sent
                     console.info('Created claim exchange execution id:', exec.$id);
@@ -106,6 +106,11 @@ const App = {
                                 window.location.href = window.location.pathname;
                                 return;
                             } else {
+                                    if (parsed && parsed.linked) {
+                                        // Server linked this scanner UID to the member; reload so DB lookup picks it up
+                                        window.location.href = window.location.pathname;
+                                        return;
+                                    } else {
                                 console.warn('Claim exchange completed but no jwt returned:', parsed);
                                 alert('Claim exchange failed: ' + (parsed?.error || 'no jwt returned'));
                             }

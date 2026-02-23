@@ -171,42 +171,57 @@ module.exports = async function (req, res) {
       }
     }
 
-    if (!memberDoc || !memberDoc.appwrite_uid) return reply({ error: 'no linked user' }, 400);
+    if (!memberDoc) return reply({ error: 'no linked user' }, 400);
 
-    // Create JWT for that user using SDK (preferable) and fall back to REST if needed
-    let jwtResp;
-    try {
-      jwtResp = await users.createJWT(memberDoc.appwrite_uid);
-      console.log('CREATE_JWT_SDK', JSON.stringify(jwtResp));
-    } catch (e) {
-      console.error('users.createJWT failed', e);
-      // Fallback: try the REST endpoint (some Appwrite versions differ)
+    // If the scanner provided its Appwrite UID, link it to the member record.
+    const scannerUid = payload.scannerUid || payload.scanner_uid || payload.scanner || incoming?.scannerUid;
+    if (scannerUid) {
       try {
-        const endpoint = (process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
-        const url = `${endpoint}/users/${memberDoc.appwrite_uid}/jwt`;
-        console.log('CREATE_JWT_URL_FALLBACK', url);
-        const resp = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'X-Appwrite-Project': process.env.APPWRITE_PROJECT,
-            'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
-            'Content-Type': 'application/json'
+        // Normalize existing UIDs
+        let uids = [];
+        if (Array.isArray(memberDoc.appwrite_uids)) uids = memberDoc.appwrite_uids.slice();
+        else if (memberDoc.appwrite_uid) uids = [memberDoc.appwrite_uid];
+
+        if (!uids.includes(scannerUid)) {
+          uids.push(scannerUid);
+          // Try SDK update first
+          try {
+            await databases.updateDocument(process.env.DB_ID, membersColl, memberDoc.$id, { appwrite_uids: uids });
+            console.log('UPDATED_MEMBER_VIA_SDK', memberDoc.$id);
+          } catch (updErr) {
+            console.error('SDK updateDocument failed, falling back to REST', updErr);
+            // Fallback to REST PATCH
+            const endpoint = (process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
+            const url = `${endpoint}/databases/${process.env.DB_ID}/collections/${membersColl}/documents/${memberDoc.$id}`;
+            const resp = await fetch(url, {
+              method: 'PATCH',
+              headers: {
+                'X-Appwrite-Project': process.env.APPWRITE_PROJECT,
+                'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ appwrite_uids: uids })
+            });
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(`update fetch failed: ${resp.status} ${JSON.stringify(data)}`);
+            console.log('UPDATED_MEMBER_VIA_FETCH', JSON.stringify({ id: data.$id || data.id }));
           }
-        });
-        const data = await resp.json();
-        console.log('CREATE_JWT_RESPONSE_FALLBACK', JSON.stringify({ status: resp.status, body: data }));
-        if (!resp.ok) throw new Error(`createJWT fetch failed: ${resp.status} ${JSON.stringify(data)}`);
-        jwtResp = data;
-      } catch (fetchErr) {
-        console.error('Failed to create JWT via fallback', fetchErr);
-        return reply({ error: 'server error', details: fetchErr.message }, 500);
+        } else {
+          console.log('Scanner UID already linked');
+        }
+
+        // Consume claim
+        await databases.deleteDocument(process.env.DB_ID, process.env.CLAIMS_COLLECTION || 'claims', token).catch(()=>{});
+        return reply({ linked: true, memberId: memberDoc.$id }, 200);
+      } catch (linkErr) {
+        console.error('Failed to link scanner UID', linkErr);
+        return reply({ error: 'server error', details: linkErr.message }, 500);
       }
     }
 
-    // Consume claim
+    // If no scannerUid provided, return member info so client can decide what to do
     await databases.deleteDocument(process.env.DB_ID, process.env.CLAIMS_COLLECTION || 'claims', token).catch(()=>{});
-
-    return reply({ jwt: jwtResp.jwt }, 200);
+    return reply({ memberId: memberDoc.$id }, 200);
   } catch (err) {
     console.error(err);
     return reply({ error: 'server error', details: err.message }, 500);
