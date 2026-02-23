@@ -173,8 +173,32 @@ module.exports = async function (req, res) {
     if (!memberDoc || !memberDoc.appwrite_uid) return reply({ error: 'no linked user' }, 400);
 
     // Create JWT for that user
-  const jwtResp = await account.createJWT(memberDoc.appwrite_uid);
-  console.log('JWT_CREATED', !!(jwtResp && jwtResp.jwt));
+    let jwtResp;
+    try {
+      if (account && typeof account.createJWT === 'function') {
+        jwtResp = await account.createJWT(memberDoc.appwrite_uid);
+      } else {
+        // SDK does not expose createJWT in this runtime/version — fallback to REST endpoint
+        const endpoint = (process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
+        const url = `${endpoint}/users/${memberDoc.appwrite_uid}/jwt`;
+        console.log('FALLBACK_CREATE_JWT_URL', url);
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'X-Appwrite-Project': process.env.APPWRITE_PROJECT,
+            'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
+            'Content-Type': 'application/json'
+          }
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(`createJWT fetch failed: ${resp.status} ${JSON.stringify(data)}`);
+        jwtResp = data;
+      }
+      console.log('JWT_CREATED', !!(jwtResp && jwtResp.jwt));
+    } catch (e) {
+      console.error('Failed to create JWT', e);
+      return reply({ error: 'server error', details: e.message }, 500);
+    }
 
     // Consume claim
     await databases.deleteDocument(process.env.DB_ID, process.env.CLAIMS_COLLECTION || 'claims', token).catch(()=>{});
