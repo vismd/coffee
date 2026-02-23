@@ -38,25 +38,54 @@ const App = {
 
                     // Provide clearer diagnostics to the user and logs for troubleshooting
                     if (check.status === 'completed') {
-                        if (check.response) {
-                            try {
-                                const result = JSON.parse(check.response);
-                                if (result && result.jwt) {
-                                    await client.setJWT(result.jwt);
-                                    // Reload as authenticated user
-                                    window.location.href = window.location.pathname;
-                                    return;
-                                } else {
-                                    console.warn('Claim exchange completed but no jwt returned:', result);
-                                    alert('Claim exchange failed: ' + (result?.error || 'no jwt returned'));
+                        // Primary: function response provided directly
+                        let parsed = null;
+                        let rawResponse = check.response;
+
+                        // Fallback: some runtimes write to stdout/logs. Try known fields.
+                        if (!rawResponse) {
+                            const candidates = [check.stdout, check.output, check.logs, check.responseOutput, check.stdoutLogs];
+                            for (const c of candidates) {
+                                if (!c) continue;
+                                const s = (typeof c === 'string') ? c : JSON.stringify(c);
+                                // Look for our marker first
+                                const m = /FUNCTION_RESPONSE\s*(\{[\s\S]*\})/.exec(s);
+                                if (m && m[1]) {
+                                    rawResponse = m[1];
+                                    break;
                                 }
+                                // If entire string is JSON, try that too
+                                try {
+                                    JSON.parse(s);
+                                    rawResponse = s;
+                                    break;
+                                } catch (e) {
+                                    // not JSON, continue
+                                }
+                            }
+                        }
+
+                        if (rawResponse) {
+                            try {
+                                parsed = JSON.parse(rawResponse);
                             } catch (parseErr) {
-                                console.error('Failed to parse claim function response:', check.response, parseErr);
+                                console.error('Failed to parse claim function raw response:', rawResponse, parseErr, 'Full execution:', check);
                                 alert('Claim exchange failed: invalid function response. See console for details.');
                             }
                         } else {
                             console.warn('Claim execution completed with no response object', check);
                             alert('Claim exchange failed: no response from function. Check function logs.');
+                        }
+
+                        if (parsed) {
+                            if (parsed && parsed.jwt) {
+                                await client.setJWT(parsed.jwt);
+                                window.location.href = window.location.pathname;
+                                return;
+                            } else {
+                                console.warn('Claim exchange completed but no jwt returned:', parsed);
+                                alert('Claim exchange failed: ' + (parsed?.error || 'no jwt returned'));
+                            }
                         }
                     } else {
                         console.error('Claim execution did not complete in time:', check);
