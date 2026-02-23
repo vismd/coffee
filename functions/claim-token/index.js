@@ -173,29 +173,30 @@ module.exports = async function (req, res) {
 
     if (!memberDoc) return reply({ error: 'no linked user' }, 400);
 
+    // Determine canonical Appwrite user id for this member (prefer single-field, then array)
+    let memberAppwriteUid = null;
+    if (memberDoc.appwrite_uid) memberAppwriteUid = memberDoc.appwrite_uid;
+    else if (Array.isArray(memberDoc.appwrite_uids) && memberDoc.appwrite_uids.length) memberAppwriteUid = memberDoc.appwrite_uids[0];
+
     // If the scanner provided its Appwrite UID, link it to the member record.
     const scannerUid = payload.scannerUid || payload.scanner_uid || payload.scanner || incoming?.scannerUid;
     if (scannerUid) {
       try {
-        // Normalize existing UIDs
-        let uids = [];
-        if (Array.isArray(memberDoc.appwrite_uids)) uids = memberDoc.appwrite_uids.slice();
-        else if (memberDoc.appwrite_uid) uids = [memberDoc.appwrite_uid];
-
-        if (!uids.includes(scannerUid)) {
-          uids.push(scannerUid);
-          // Try SDK update first
+        // If the member is already associated with this UID, skip update
+        if (String(memberDoc.appwrite_uid || '') === String(scannerUid)) {
+          console.log('Scanner UID already linked as appwrite_uid');
+        } else {
+          // Overwrite/create the single `appwrite_uid` field to permanently associate member with this device UID
           try {
-            await databases.updateDocument(process.env.DB_ID, membersColl, memberDoc.$id, { appwrite_uids: uids });
-            console.log('UPDATED_MEMBER_VIA_SDK', memberDoc.$id);
+            await databases.updateDocument(process.env.DB_ID, membersColl, memberDoc.$id, { appwrite_uid: scannerUid });
+            console.log('UPDATED_MEMBER_APPWRITE_UID_VIA_SDK', memberDoc.$id, scannerUid);
           } catch (updErr) {
             console.error('SDK updateDocument failed, falling back to REST', updErr);
-            // Fallback to REST PATCH: Appwrite expects a `data` object for document updates
             const endpoint = (process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
             const url = `${endpoint}/databases/${process.env.DB_ID}/collections/${membersColl}/documents/${memberDoc.$id}`;
             try {
-              const fetchBody = { data: { appwrite_uids: uids } };
-              let resp = await fetch(url, {
+              const fetchBody = { data: { appwrite_uid: scannerUid } };
+              const resp = await fetch(url, {
                 method: 'PATCH',
                 headers: {
                   'X-Appwrite-Project': process.env.APPWRITE_PROJECT,
@@ -204,48 +205,59 @@ module.exports = async function (req, res) {
                 },
                 body: JSON.stringify(fetchBody)
               });
-              let data = await resp.json();
-              // If the server rejects the array attribute (unknown attribute), try falling back to the older single-field
-              if (!resp.ok && data && typeof data.message === 'string' && data.message.includes('Unknown attribute')) {
-                console.warn('Server rejected appwrite_uids attribute, attempting fallback to appwrite_uid');
-                const fallbackBody = { data: { appwrite_uid: uids[0] } };
-                resp = await fetch(url, {
-                  method: 'PATCH',
-                  headers: {
-                    'X-Appwrite-Project': process.env.APPWRITE_PROJECT,
-                    'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify(fallbackBody)
-                });
-                data = await resp.json();
-                if (!resp.ok) throw new Error(`update fetch failed: ${resp.status} ${JSON.stringify(data)}`);
-                console.log('UPDATED_MEMBER_VIA_FETCH_FALLBACK', JSON.stringify({ id: data.$id || data.id }));
-              } else {
-                if (!resp.ok) throw new Error(`update fetch failed: ${resp.status} ${JSON.stringify(data)}`);
-                console.log('UPDATED_MEMBER_VIA_FETCH', JSON.stringify({ id: data.$id || data.id }));
-              }
+              const data = await resp.json();
+              if (!resp.ok) throw new Error(`update fetch failed: ${resp.status} ${JSON.stringify(data)}`);
+              console.log('UPDATED_MEMBER_VIA_FETCH', JSON.stringify({ id: data.$id || data.id }));
             } catch (fetchErr) {
               console.error('update fetch failed', fetchErr);
               throw fetchErr;
             }
           }
-        } else {
-          console.log('Scanner UID already linked');
+          // reflect change locally
+          memberDoc.appwrite_uid = scannerUid;
+        }
+
+        // After linking, set canonical to the scanner UID
+        memberAppwriteUid = scannerUid;
+
+        // Attempt to create a JWT for the canonical Appwrite user id (server-side)
+        let jwtResp = null;
+        if (memberAppwriteUid) {
+          try {
+            jwtResp = await users.createJWT(memberAppwriteUid);
+            console.log('CREATED_JWT_FOR', memberAppwriteUid);
+          } catch (jwtErr) {
+            console.error('Failed to create JWT for', memberAppwriteUid, jwtErr);
+            jwtResp = null;
+          }
         }
 
         // Consume claim
         await databases.deleteDocument(process.env.DB_ID, process.env.CLAIMS_COLLECTION || 'claims', token).catch(()=>{});
-        return reply({ linked: true, memberId: memberDoc.$id }, 200);
+        return reply({ linked: true, memberId: memberDoc.$id, jwt: jwtResp ? jwtResp.jwt : undefined }, 200);
       } catch (linkErr) {
         console.error('Failed to link scanner UID', linkErr);
         return reply({ error: 'server error', details: linkErr.message }, 500);
       }
     }
 
-    // If no scannerUid provided, return member info so client can decide what to do
+    // If no scannerUid provided, attempt to mint a JWT for the canonical appwrite UID and return it
+    let jwtResp = null;
+    if (!memberAppwriteUid && memberDoc.appwrite_uids && memberDoc.appwrite_uids.length) {
+      memberAppwriteUid = memberDoc.appwrite_uids[0];
+    }
+    if (memberAppwriteUid) {
+      try {
+        jwtResp = await users.createJWT(memberAppwriteUid);
+        console.log('CREATED_JWT_FOR', memberAppwriteUid);
+      } catch (jwtErr) {
+        console.error('Failed to create JWT for', memberAppwriteUid, jwtErr);
+        jwtResp = null;
+      }
+    }
+
     await databases.deleteDocument(process.env.DB_ID, process.env.CLAIMS_COLLECTION || 'claims', token).catch(()=>{});
-    return reply({ memberId: memberDoc.$id }, 200);
+    return reply({ memberId: memberDoc.$id, jwt: jwtResp ? jwtResp.jwt : undefined }, 200);
   } catch (err) {
     console.error(err);
     return reply({ error: 'server error', details: err.message }, 500);
