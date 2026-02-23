@@ -7,6 +7,8 @@ function sendJson(res, body, status = 200) {
   if (res && typeof res.json === 'function') {
     // res.json may return something the runtime expects; return an object for consistency
     const out = res.json(body, status);
+    // Emit a stdout marker that makes the response visible in logs/executions
+    try { console.log('FUNCTION_RESPONSE', JSON.stringify({ status, body })); } catch (e) {}
     return out === undefined ? { status, body } : out;
   }
 
@@ -17,11 +19,13 @@ function sendJson(res, body, status = 200) {
     } catch (e) {}
     // write and flush the response then return a consistent object
     try { res.end(JSON.stringify(body)); } catch (e) { /* ignore */ }
+    try { console.log('FUNCTION_RESPONSE', JSON.stringify({ status, body })); } catch (e) {}
     return { status, body };
   }
 
   // Fallback: print to stdout with a clear marker for logs
   console.log('FUNCTION_FALLBACK_RESPONSE', JSON.stringify({ status, body }));
+  try { console.log('FUNCTION_RESPONSE', JSON.stringify({ status, body })); } catch (e) {}
   // Return a value the runtime can observe to avoid "Return statement missing" errors
   return { status, body };
 }
