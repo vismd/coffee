@@ -22,30 +22,50 @@ const App = {
                 try {
                     const exec = await functions.createExecution(CLAIM_FUNCTION_ID, JSON.stringify({ token: claimToken }));
 
-                    // Poll for execution completion (timeout after ~15s)
+                    // Helpful debug: log execution id so you can inspect the function run in Appwrite console
+                    console.info('Created claim exchange execution:', exec.$id, exec);
+
+                    // Poll for execution completion (timeout after ~45s to allow slower runtimes)
                     const start = Date.now();
                     let check = exec;
-                    while ((check.status !== 'completed') && (Date.now() - start < 15000)) {
-                        await new Promise(r => setTimeout(r, 800));
+                    const TIMEOUT_MS = 45000; // increased from 15s
+                    const POLL_MS = 1000; // poll every 1s
+                    while ((check.status !== 'completed') && (Date.now() - start < TIMEOUT_MS)) {
+                        await new Promise(r => setTimeout(r, POLL_MS));
                         check = await functions.getExecution(CLAIM_FUNCTION_ID, exec.$id);
+                        console.debug('Claim execution status:', check.status);
                     }
 
-                    if (check.status === 'completed' && check.response) {
-                        const result = JSON.parse(check.response);
-                        if (result && result.jwt) {
-                            await client.setJWT(result.jwt);
-                            // Reload as authenticated user
-                            window.location.href = window.location.pathname;
-                            return;
+                    // Provide clearer diagnostics to the user and logs for troubleshooting
+                    if (check.status === 'completed') {
+                        if (check.response) {
+                            try {
+                                const result = JSON.parse(check.response);
+                                if (result && result.jwt) {
+                                    await client.setJWT(result.jwt);
+                                    // Reload as authenticated user
+                                    window.location.href = window.location.pathname;
+                                    return;
+                                } else {
+                                    console.warn('Claim exchange completed but no jwt returned:', result);
+                                    alert('Claim exchange failed: ' + (result?.error || 'no jwt returned'));
+                                }
+                            } catch (parseErr) {
+                                console.error('Failed to parse claim function response:', check.response, parseErr);
+                                alert('Claim exchange failed: invalid function response. See console for details.');
+                            }
                         } else {
-                            alert('Claim exchange failed: ' + (result?.error || 'no jwt returned'));
+                            console.warn('Claim execution completed with no response object', check);
+                            alert('Claim exchange failed: no response from function. Check function logs.');
                         }
                     } else {
-                        alert('Claim exchange timed out or failed.');
+                        console.error('Claim execution did not complete in time:', check);
+                        // Show execution id so user can inspect Appwrite logs
+                        alert('Claim exchange timed out or failed. Execution id: ' + (exec.$id || 'unknown') + '. Check function logs for details.');
                     }
                 } catch (e) {
                     console.error('Claim exchange error:', e);
-                    alert('Claim exchange failed.');
+                    alert('Claim exchange failed. See console for details.');
                 }
             }
 
