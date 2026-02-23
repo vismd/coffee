@@ -245,6 +245,20 @@ const App = {
 // Standard way to launch the app
 window.onload = () => App.init();
 
+// Helper function for dark mode aware colors
+window.getModalColors = () => {
+    const isDarkMode = document.body.classList.contains('dark-mode');
+    return {
+        bg: isDarkMode ? '#2d2d2d' : '#ffffff',
+        text: isDarkMode ? '#e8e8e8' : '#2d3436',
+        inputBg: isDarkMode ? '#1e1e1e' : '#f9f9f9',
+        inputBorder: isDarkMode ? '#444' : '#ddd',
+        inputText: isDarkMode ? '#e8e8e8' : '#2d3436',
+        secondaryText: isDarkMode ? '#a0a0a0' : '#636e72',
+        accentBg: isDarkMode ? '#3d3d3d' : '#f0f0f0'
+    };
+};
+
 window.handleCoffee = async () => {
     // Check the App object for the member we found during init
     if (!App.userMember) {
@@ -422,16 +436,17 @@ window.showExpenseModal = () => {
     // Check if modal already exists to prevent duplicates
     if (document.getElementById('expense-modal')) return;
 
+    const colors = window.getModalColors();
     const modalHtml = `
         <div class="modal-overlay" id="expense-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;">
-            <div class="card modal" style="background:white; padding:30px; border-radius:24px; max-width:400px; width:90%;">
-                <h3 style="margin-top:0">Group Purchase</h3>
-                <p><small>Cost for beans, milk, or snacks.</small></p>
+            <div class="card modal" style="background:${colors.bg}; color:${colors.text}; padding:30px; border-radius:24px; max-width:400px; width:90%;">
+                <h3 style="margin-top:0; color:${colors.text}">Group Purchase</h3>
+                <p style="color:${colors.secondaryText}"><small>Cost for beans, milk, or snacks.</small></p>
                 
-                <input type="number" id="exp-amount" placeholder="Amount (€)" step="0.01" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:8px;">
-                <input type="text" id="exp-msg" placeholder="Item (e.g. 1kg Espresso)" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:8px;">
-                <label style="display:block; margin-top:10px; font-size:0.8rem;">Optional: Receipt Photo</label>
-                <input type="file" id="exp-file" accept="image/*" style="width:100%; margin-bottom:20px;">
+                <input type="number" id="exp-amount" placeholder="Amount (€)" step="0.01" style="width:100%; padding:12px; margin:10px 0; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box;">
+                <input type="text" id="exp-msg" placeholder="Item (e.g. 1kg Espresso)" style="width:100%; padding:12px; margin:10px 0; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box;">
+                <label style="display:block; margin-top:10px; font-size:0.8rem; color:${colors.secondaryText};">Optional: Receipt Photo</label>
+                <input type="file" id="exp-file" accept="image/*" style="width:100%; margin-bottom:20px; color:${colors.inputText};">
                 
                 <div style="display:flex; gap:10px;">
                     <button onclick="window.submitExpense()" class="btn-primary" style="flex:2">Save</button>
@@ -480,15 +495,16 @@ window.submitExpense = async () => {
 window.showCoffeeBeanModal = () => {
     if (document.getElementById('bean-modal')) return;
 
+    const colors = window.getModalColors();
     const modalHtml = `
         <div class="modal-overlay" id="bean-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;">
-            <div class="card modal" style="background:white; padding:30px; border-radius:24px; max-width:400px; width:90%;">
-                <h3 style="margin-top:0">🫘 Buy Coffee Beans</h3>
-                <p><small>Record a coffee bean purchase and update the price per cup.</small></p>
+            <div class="card modal" style="background:${colors.bg}; color:${colors.text}; padding:30px; border-radius:24px; max-width:400px; width:90%;">
+                <h3 style="margin-top:0; color:${colors.text}">🫘 Buy Coffee Beans</h3>
+                <p style="color:${colors.secondaryText}"><small>Record a coffee bean purchase and update the price per cup.</small></p>
                 
-                <input type="number" id="bean-amount" placeholder="Cost (€)" step="0.01" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:8px;">
-                <input type="number" id="bean-grams" placeholder="Weight (grams)" step="1" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:8px;">
-                <div style="background:#f0f0f0; padding:15px; border-radius:8px; margin:15px 0; font-size:0.9rem;">
+                <input type="number" id="bean-amount" placeholder="Cost (€)" step="0.01" style="width:100%; padding:12px; margin:10px 0; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box;">
+                <input type="number" id="bean-grams" placeholder="Weight (grams)" step="1" style="width:100%; padding:12px; margin:10px 0; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box;">
+                <div style="background:${colors.accentBg}; color:${colors.text}; padding:15px; border-radius:8px; margin:15px 0; font-size:0.9rem;">
                     <p style="margin:0 0 8px 0;"><b>Calculation:</b></p>
                     <p style="margin:0;">Price/kg: <span id="price-per-kg">€0.00</span></p>
                     <p style="margin:5px 0 0 0;">Price/cup: <span id="price-per-cup">€0.00</span> <span id="grams-info"></span></p>
@@ -524,6 +540,7 @@ window.showCoffeeBeanModal = () => {
     gramsInput.addEventListener('input', updateCalculation);
     updateCalculation();
 };
+};
 
 window.submitCoffeeBeans = async () => {
     const amountInput = document.getElementById('bean-amount');
@@ -558,20 +575,21 @@ window.submitCoffeeBeans = async () => {
 window.showGramsConfigModal = async () => {
     if (document.getElementById('grams-modal')) return;
 
+    const colors = window.getModalColors();
     const config = await DB.getGlobalConfig();
 
     const modalHtml = `
         <div class="modal-overlay" id="grams-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;">
-            <div class="card modal" style="background:white; padding:30px; border-radius:24px; max-width:400px; width:90%;">
-                <h3 style="margin-top:0">⚙️ Cup Weight Configuration</h3>
-                <p><small>Set how many grams of coffee are used per cup. This affects the dynamic price calculation.</small></p>
+            <div class="card modal" style="background:${colors.bg}; color:${colors.text}; padding:30px; border-radius:24px; max-width:400px; width:90%;">
+                <h3 style="margin-top:0; color:${colors.text}">⚙️ Cup Weight Configuration</h3>
+                <p style="color:${colors.secondaryText}"><small>Set how many grams of coffee are used per cup. This affects the dynamic price calculation.</small></p>
                 
-                <label style="display:block; font-weight:600; margin-bottom:8px; color:#2d3436;">Grams per Cup:</label>
-                <input type="number" id="grams-input" placeholder="Grams" step="1" min="1" value="${config.grams_per_cup}" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:8px; box-sizing:border-box;">
+                <label style="display:block; font-weight:600; margin-bottom:8px; color:${colors.text};">Grams per Cup:</label>
+                <input type="number" id="grams-input" placeholder="Grams" step="1" min="1" value="${config.grams_per_cup}" style="width:100%; padding:12px; margin:10px 0; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box;">
                 
-                <div style="background:#f0f0f0; padding:15px; border-radius:8px; margin:15px 0; font-size:0.9rem;">
+                <div style="background:${colors.accentBg}; color:${colors.text}; padding:15px; border-radius:8px; margin:15px 0; font-size:0.9rem;">
                     <p style="margin:0;"><b>Current Price per Cup: €${config.coffee_price_per_cup.toFixed(2)}</b></p>
-                    <p style="margin:8px 0 0 0; color:#636e72; font-size:0.85rem;">This will be updated the next time beans are purchased.</p>
+                    <p style="margin:8px 0 0 0; color:${colors.secondaryText}; font-size:0.85rem;">Price will update when beans are next purchased with new weight.</p>
                 </div>
                 
                 <div style="display:flex; gap:10px;">
@@ -600,7 +618,7 @@ window.submitGramsConfig = async () => {
 
         await DB.updateGramsPerCup(grams);
         
-        alert("Cup weight configuration updated!");
+        alert("Cup weight updated! Price per cup has been recalculated automatically.");
         location.reload();
     } catch (e) {
         console.error(e);

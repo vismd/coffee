@@ -115,24 +115,29 @@ const DB = {
             return {
                 group_funds: config.group_funds || 0,
                 grams_per_cup: config.grams_per_cup || 18, // Default 18g per cup
-                coffee_price_per_cup: config.coffee_price_per_cup || 0.50
+                coffee_price_per_cup: config.coffee_price_per_cup || 0.50,
+                coffee_price_per_gram: config.coffee_price_per_gram || 0.0278 // Default based on 0.50/18g
             };
         } catch (error) {
             console.error("Error fetching global config:", error);
             return {
                 group_funds: 0,
                 grams_per_cup: 18,
-                coffee_price_per_cup: 0.50
+                coffee_price_per_cup: 0.50,
+                coffee_price_per_gram: 0.0278
             };
         }
     },
 
-    // Update grams per cup configuration
+    // Update grams per cup configuration and recalculate price per cup
     async updateGramsPerCup(gramsPerCup) {
         try {
-            const config = await databases.getDocument(DB_ID, COLL_GLOBAL, 'main');
+            const config = await this.getGlobalConfig();
+            const newPricePerCup = config.coffee_price_per_gram * gramsPerCup;
+            
             await databases.updateDocument(DB_ID, COLL_GLOBAL, 'main', {
-                grams_per_cup: parseFloat(gramsPerCup)
+                grams_per_cup: parseFloat(gramsPerCup),
+                coffee_price_per_cup: newPricePerCup
             });
             return true;
         } catch (error) {
@@ -144,20 +149,21 @@ const DB = {
     // Record coffee bean purchase
     async recordCoffeeBeanPurchase(amount, grams, message = "") {
         try {
-            const config = await this.getGlobalConfig();
             const pricePerGram = amount / grams;
+            const config = await this.getGlobalConfig();
             const pricePerCup = pricePerGram * config.grams_per_cup;
 
-            // Update global funds
+            // Update global funds and pricing info
             const global = await databases.getDocument(DB_ID, COLL_GLOBAL, 'main');
             await databases.updateDocument(DB_ID, COLL_GLOBAL, 'main', {
                 group_funds: global.group_funds - amount,
-                coffee_price_per_cup: pricePerCup
+                coffee_price_per_cup: pricePerCup,
+                coffee_price_per_gram: pricePerGram
             });
 
-            // Log the bean purchase
-            const logMessage = `${grams}g purchased - €${(pricePerGram * 1000).toFixed(2)}/kg (€${pricePerCup.toFixed(2)}/cup)`;
-            return await this.logAction('BEANS', -amount, 'ADMIN', 'System', logMessage);
+            // Log as EXPENSE so it shows in group logs
+            const logMessage = `🫘 Coffee Beans: ${grams}g @ €${(pricePerGram * 1000).toFixed(2)}/kg (€${pricePerCup.toFixed(2)}/cup)`;
+            return await this.logAction('EXPENSE', -amount, 'ADMIN', 'System', logMessage);
         } catch (error) {
             console.error("Error recording bean purchase:", error);
             throw error;
