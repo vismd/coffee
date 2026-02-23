@@ -34,9 +34,26 @@ module.exports = async function (req, res) {
   const reply = (body, status) => sendJson(res, body, status);
 
   try {
-    const payloadStr = (req && req.payload) ? req.payload : '{}';
-    const payload = JSON.parse(payloadStr || '{}');
-    const token = payload.token || payload.claim_token;
+    // Support multiple runtime shapes: req.payload (string), req.body, req.variables, req.args, req.query
+    let payload = {};
+    try {
+      if (req && req.payload) {
+        payload = JSON.parse(req.payload || '{}');
+      } else if (req && req.body) {
+        payload = (typeof req.body === 'string') ? JSON.parse(req.body || '{}') : req.body;
+      } else if (req && req.args) {
+        payload = (typeof req.args === 'string') ? JSON.parse(req.args || '{}') : req.args;
+      } else if (req && req.variables) {
+        payload = req.variables;
+      } else if (req && req.query) {
+        payload = req.query;
+      }
+    } catch (e) {
+      console.warn('Failed to parse incoming payload shape, continuing with empty payload', e);
+      payload = {};
+    }
+
+    const token = payload.token || payload.claim_token || req?.token || req?.claim_token;
     if (!token) return reply({ error: 'missing token' }, 400);
 
     const client = new sdk.Client()
