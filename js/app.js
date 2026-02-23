@@ -279,28 +279,55 @@ window.showClaimQR = async (memberId) => {
             claimUrl = `${baseUrl}?claim=${memberId}`;
         }
 
-        // Show modal + QR
-        const modal = document.createElement('div');
-        modal.className = 'qr-modal';
-        modal.id = 'qr-modal';
-        modal.innerHTML = `
-            <div class="qr-modal-content">
-                <button class="qr-close-btn" onclick="document.getElementById('qr-modal').remove()">✕</button>
-                <h3>Share Identification</h3>
-                <p>Scan this code on a new device to link your account</p>
-                <div id="qr-code"></div>
-                <p style="font-size: 0.75rem; margin-top: 1rem; word-break: break-all;">${claimUrl}</p>
+        // Show modal + QR (centered, with copy button)
+        const modalHtml = `
+            <div class="modal-overlay" id="qr-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:10000;">
+              <div class="card modal" style="padding:20px; max-width:420px; width:92%; border-radius:12px; text-align:center;">
+                <button class="qr-close-btn" onclick="document.getElementById('qr-modal').remove()" style="position:absolute; right:18px; top:18px; background:none; border:none; font-size:18px; cursor:pointer">✕</button>
+                <h3 style="margin-top:0">Share Identification</h3>
+                <p style="margin-top:0.25rem; color:#666">Scan this code on a new device to link your account</p>
+                <div id="qr-code" style="margin:12px 0"></div>
+                <div style="display:flex; gap:8px; align-items:center; justify-content:center; margin-top:8px;">
+                  <input id="claim-link-input" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:6px;" readonly />
+                  <button id="claim-copy-btn" class="btn-primary" style="white-space:nowrap">Copy</button>
+                </div>
+              </div>
             </div>
         `;
-        document.body.appendChild(modal);
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
 
-        new QRCode(document.getElementById('qr-code'), {
-            text: claimUrl,
-            width: 250,
-            height: 250,
-            colorDark: '#2d3436',
-            colorLight: '#ffffff'
-        });
+        // Populate QR and set up copy handler
+        try {
+            const qrTarget = document.getElementById('qr-code');
+            new QRCode(qrTarget, {
+                text: claimUrl,
+                width: 250,
+                height: 250,
+                colorDark: '#2d3436',
+                colorLight: '#ffffff'
+            });
+
+            const linkInput = document.getElementById('claim-link-input');
+            linkInput.value = claimUrl;
+
+            document.getElementById('claim-copy-btn').addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(claimUrl);
+                    alert('Link copied to clipboard');
+                } catch (err) {
+                    // Fallback for older browsers
+                    try {
+                        linkInput.select();
+                        document.execCommand('copy');
+                        alert('Link copied to clipboard');
+                    } catch (e) {
+                        alert('Copy failed; select and copy manually');
+                    }
+                }
+            });
+        } catch (e) {
+            console.error('Failed to render QR or set copy handler', e);
+        }
     } catch (e) {
         console.error('Error creating claim token or fetching member:', e);
         alert('Could not create claim QR. See console for details.');
