@@ -22,8 +22,19 @@ const App = {
                 try {
                     const exec = await functions.createExecution(CLAIM_FUNCTION_ID, JSON.stringify({ token: claimToken }));
 
-                    // Helpful debug: log execution id so you can inspect the function run in Appwrite console
-                    console.info('Created claim exchange execution:', exec.$id, exec);
+                    // Helpful debug: log execution id and snapshot of likely payload fields so we can inspect what was sent
+                    console.info('Created claim exchange execution id:', exec.$id);
+                    try {
+                        console.debug('Execution snapshot:', {
+                            id: exec.$id,
+                            status: exec.status,
+                            payload: exec.payload || exec.requestPayload || exec.data || exec.args || null,
+                            // include raw exec for manual inspection in console (non-stringified)
+                            raw: exec
+                        });
+                    } catch (e) {
+                        console.debug('Execution object (raw):', exec);
+                    }
 
                     // Poll for execution completion (timeout after ~45s to allow slower runtimes)
                     const start = Date.now();
@@ -33,7 +44,19 @@ const App = {
                     while ((check.status !== 'completed') && (Date.now() - start < TIMEOUT_MS)) {
                         await new Promise(r => setTimeout(r, POLL_MS));
                         check = await functions.getExecution(CLAIM_FUNCTION_ID, exec.$id);
-                        console.debug('Claim execution status:', check.status);
+                        // Log status and snapshot of likely response/log fields for debugging
+                        try {
+                            console.debug('Claim execution status snapshot:', {
+                                id: check.$id || exec.$id,
+                                status: check.status,
+                                response: check.response || null,
+                                stdout: check.stdout || check.output || null,
+                                logs: check.logs || null,
+                                raw: check
+                            });
+                        } catch (e) {
+                            console.debug('Execution check (raw):', check);
+                        }
                     }
 
                     // Provide clearer diagnostics to the user and logs for troubleshooting
