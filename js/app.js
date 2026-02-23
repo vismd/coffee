@@ -256,23 +256,28 @@ window.handleCoffee = async () => {
 
 window.showClaimQR = async (memberId) => {
     try {
-        // Create a single-use claim document (5 minute expiry)
-        // Include permissions so the client may create it without changing collection defaults.
-        // For production, tighten these permissions (e.g., to the creating user) as needed.
-        const claim = await databases.createDocument(
-            DB_ID,
-            COLL_CLAIMS,
-            ID.unique(),
-            {
-                memberId,
-                createdAt: new Date().toISOString(),
-                expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString()
-            }
-        );
-
-        // Build URL with claim_token
+        // Fetch member to decide which link to show
+        const member = await databases.getDocument(DB_ID, COLL_MEMBERS, memberId);
         const baseUrl = window.location.origin + window.location.pathname;
-        const claimUrl = `${baseUrl}?claim_token=${claim.$id}`;
+
+        let claimUrl;
+        if (member && member.appwrite_uid) {
+            // Member already linked to an Appwrite user: create a server-backed short-lived claim token
+            const claim = await databases.createDocument(
+                DB_ID,
+                COLL_CLAIMS,
+                ID.unique(),
+                {
+                    memberId,
+                    createdAt: new Date().toISOString(),
+                    expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString()
+                }
+            );
+            claimUrl = `${baseUrl}?claim_token=${claim.$id}`;
+        } else {
+            // Member has no Appwrite UID: fall back to legacy claim link
+            claimUrl = `${baseUrl}?claim=${memberId}`;
+        }
 
         // Show modal + QR
         const modal = document.createElement('div');
@@ -297,7 +302,7 @@ window.showClaimQR = async (memberId) => {
             colorLight: '#ffffff'
         });
     } catch (e) {
-        console.error('Error creating claim token:', e);
+        console.error('Error creating claim token or fetching member:', e);
         alert('Could not create claim QR. See console for details.');
     }
 };
