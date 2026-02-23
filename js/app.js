@@ -3,8 +3,15 @@ const App = {
 
     async init() {
         try {
-            // Load theme preference from localStorage
-            const savedTheme = localStorage.getItem('theme') || 'light';
+            // Load theme preference from localStorage, or use system preference
+            let savedTheme = localStorage.getItem('theme');
+            
+            if (!savedTheme) {
+                // Check device/browser preference if no saved preference exists
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                savedTheme = prefersDark ? 'dark' : 'light';
+            }
+            
             if (savedTheme === 'dark') {
                 document.body.classList.add('dark-mode');
                 document.getElementById('theme-toggle').textContent = '☀️';
