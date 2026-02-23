@@ -168,9 +168,11 @@ const App = {
                             }
 
                             if (parsed.linked && parsed.appwrite_uid) {
-                                // Device successfully linked on server; reload to pick up the new session
-                                console.info('Device linked successfully on server. Reloading to reinitialize session...');
-                                alert('✓ Device successfully linked to member! Click OK to reload and log in.');
+                                // Device successfully linked on server
+                                console.info('Device linked to appwrite_uid:', parsed.appwrite_uid);
+                                // Store the linked UID so the app can offer quick-login or auto-prompt after reload
+                                localStorage.setItem('LINKED_APPWRITE_UID', parsed.appwrite_uid);
+                                alert('✓ Device successfully linked! You can now log in. Click OK to reload.');
                                 window.location.href = window.location.pathname;
                                 return;
                             }
