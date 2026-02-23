@@ -137,13 +137,39 @@ module.exports = async function (req, res) {
     }
 
     let memberDoc;
+    const membersColl = process.env.MEMBERS_COLLECTION || 'members';
     try {
-      memberDoc = await databases.getDocument(process.env.DB_ID, process.env.MEMBERS_COLLECTION || 'members', claim.memberId);
+      memberDoc = await databases.getDocument(process.env.DB_ID, membersColl, claim.memberId);
       console.log('MEMBER_DOC', JSON.stringify({ id: memberDoc.$id || null, appwrite_uid: !!(memberDoc && memberDoc.appwrite_uid) }));
     } catch (e) {
       console.error('Failed to read member document', e);
-      return reply({ error: 'no linked user', details: e.message }, 400);
+      if (e && typeof e.message === 'string' && e.message.includes('request cannot have request body')) {
+        try {
+          // Fallback: REST GET directly
+          const endpoint = (process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
+          const url = `${endpoint}/databases/${process.env.DB_ID}/collections/${membersColl}/documents/${claim.memberId}`;
+          console.log('FALLBACK_MEMBER_FETCH_URL', url);
+          const fetchResp = await fetch(url, {
+            method: 'GET',
+            headers: {
+              'X-Appwrite-Project': process.env.APPWRITE_PROJECT,
+              'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
+              'Content-Type': 'application/json'
+            }
+          });
+          const data = await fetchResp.json();
+          if (!fetchResp.ok) throw new Error(`fetch failed: ${fetchResp.status} ${JSON.stringify(data)}`);
+          memberDoc = data;
+          console.log('MEMBER_DOC_FALLBACK', JSON.stringify({ id: memberDoc.$id || null, appwrite_uid: !!(memberDoc && memberDoc.appwrite_uid) }));
+        } catch (fetchErr) {
+          console.error('Fallback member fetch failed', fetchErr);
+          return reply({ error: 'no linked user', details: fetchErr.message }, 400);
+        }
+      } else {
+        return reply({ error: 'no linked user', details: e.message }, 400);
+      }
     }
+
     if (!memberDoc || !memberDoc.appwrite_uid) return reply({ error: 'no linked user' }, 400);
 
     // Create JWT for that user
