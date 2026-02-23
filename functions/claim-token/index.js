@@ -114,17 +114,19 @@ module.exports = async function (req, res) {
       }
 
       // REST fallbacks (try a few endpoint shapes to handle API/version differences)
-      const endpoint = (process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
+      // Normalize endpoint: strip any trailing / or trailing /v1 to avoid double /v1 in URLs
+      const endpointRaw = (process.env.APPWRITE_ENDPOINT || '');
+      const baseEndpoint = endpointRaw.replace(/\/v1\/?$/,'').replace(/\/$/, '');
       const tryUrls = [
-        `${endpoint}/v1/users/${uid}/jwt`,
-        `${endpoint}/users/${uid}/jwt`,
-        `${endpoint}/v1/users/${uid}/sessions/jwt`,
-        `${endpoint}/users/${uid}/sessions/jwt`
+        `${baseEndpoint}/v1/users/${uid}/jwt`,
+        `${baseEndpoint}/users/${uid}/jwt`,
+        `${baseEndpoint}/v1/users/${uid}/sessions/jwt`,
+        `${baseEndpoint}/users/${uid}/sessions/jwt`
       ];
       for (const url of tryUrls) {
         try {
           const resp = await fetch(url, { method: 'POST', headers: { 'X-Appwrite-Project': process.env.APPWRITE_PROJECT, 'X-Appwrite-Key': process.env.APPWRITE_API_KEY } });
-          const data = await resp.json();
+          const data = await resp.json().catch(()=>null);
           if (resp.ok && data) return data;
           console.warn('JWT endpoint attempt failed', url, resp.status, data);
         } catch (e) {
@@ -134,6 +136,17 @@ module.exports = async function (req, res) {
       return null;
     };
 
+    // Helper: extract a JWT string from various response shapes
+    const unwrapJwt = (resp) => {
+      if (!resp) return undefined;
+      if (typeof resp === 'string') return resp;
+      if (resp.jwt) return resp.jwt;
+      if (resp.token) return resp.token;
+      if (resp.access_token) return resp.access_token;
+      if (resp.secret) return resp.secret;
+      return undefined;
+    };
+
     // If a scanner UID is provided: link or respect existing canonical mapping
     if (scannerUid) {
       try {
@@ -141,7 +154,7 @@ module.exports = async function (req, res) {
           // Do not overwrite existing canonical UID — just mint JWT for that UID
           const jwtResp = await createJwtForUid(memberAppwriteUid);
           await databases.deleteDocument(process.env.DB_ID, collClaims, token).catch(()=>{});
-          return reply({ linked: true, memberId: memberDoc.$id, jwt: jwtResp ? jwtResp.jwt : undefined }, 200);
+          return reply({ linked: true, memberId: memberDoc.$id, jwt: unwrapJwt(jwtResp) }, 200);
         }
 
         // No canonical UID yet: set appwrite_uid to scannerUid (SDK then REST fallback)
@@ -164,7 +177,7 @@ module.exports = async function (req, res) {
         // Create JWT for the newly associated UID
         const jwtResp = await createJwtForUid(memberAppwriteUid);
         await databases.deleteDocument(process.env.DB_ID, collClaims, token).catch(()=>{});
-        return reply({ linked: true, memberId: memberDoc.$id, jwt: jwtResp ? jwtResp.jwt : undefined }, 200);
+        return reply({ linked: true, memberId: memberDoc.$id, jwt: unwrapJwt(jwtResp) }, 200);
       } catch (linkErr) {
         console.error('Failed to link scanner UID', linkErr);
         return reply({ error: 'server error', details: linkErr.message }, 500);
@@ -175,7 +188,7 @@ module.exports = async function (req, res) {
     try {
       const jwtResp = await createJwtForUid(memberAppwriteUid);
       await databases.deleteDocument(process.env.DB_ID, collClaims, token).catch(()=>{});
-      return reply({ memberId: memberDoc.$id, jwt: jwtResp ? jwtResp.jwt : undefined }, 200);
+      return reply({ memberId: memberDoc.$id, jwt: unwrapJwt(jwtResp) }, 200);
     } catch (e) {
       console.error('Failed to create JWT for member', e);
       await databases.deleteDocument(process.env.DB_ID, collClaims, token).catch(()=>{});
