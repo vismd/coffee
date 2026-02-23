@@ -126,9 +126,11 @@ module.exports = async function (req, res) {
       for (const url of tryUrls) {
         try {
           const resp = await fetch(url, { method: 'POST', headers: { 'X-Appwrite-Project': process.env.APPWRITE_PROJECT, 'X-Appwrite-Key': process.env.APPWRITE_API_KEY } });
-          const data = await resp.json().catch(()=>null);
+          const text = await resp.text().catch(()=>null);
+          let data = null;
+          try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
           if (resp.ok && data) return data;
-          console.warn('JWT endpoint attempt failed', url, resp.status, data);
+          console.warn('JWT endpoint attempt failed', { url, status: resp.status, body: data || text });
         } catch (e) {
           console.warn('JWT fetch error for', url, e);
         }
@@ -154,7 +156,7 @@ module.exports = async function (req, res) {
           // Do not overwrite existing canonical UID — just mint JWT for that UID
           const jwtResp = await createJwtForUid(memberAppwriteUid);
           await databases.deleteDocument(process.env.DB_ID, collClaims, token).catch(()=>{});
-          return reply({ linked: true, memberId: memberDoc.$id, jwt: unwrapJwt(jwtResp) }, 200);
+          return reply({ linked: true, memberId: memberDoc.$id, appwrite_uid: memberAppwriteUid, jwt: unwrapJwt(jwtResp) }, 200);
         }
 
         // No canonical UID yet: set appwrite_uid to scannerUid (SDK then REST fallback)
@@ -177,7 +179,7 @@ module.exports = async function (req, res) {
         // Create JWT for the newly associated UID
         const jwtResp = await createJwtForUid(memberAppwriteUid);
         await databases.deleteDocument(process.env.DB_ID, collClaims, token).catch(()=>{});
-        return reply({ linked: true, memberId: memberDoc.$id, jwt: unwrapJwt(jwtResp) }, 200);
+        return reply({ linked: true, memberId: memberDoc.$id, appwrite_uid: memberAppwriteUid, jwt: unwrapJwt(jwtResp) }, 200);
       } catch (linkErr) {
         console.error('Failed to link scanner UID', linkErr);
         return reply({ error: 'server error', details: linkErr.message }, 500);
@@ -188,7 +190,7 @@ module.exports = async function (req, res) {
     try {
       const jwtResp = await createJwtForUid(memberAppwriteUid);
       await databases.deleteDocument(process.env.DB_ID, collClaims, token).catch(()=>{});
-      return reply({ memberId: memberDoc.$id, jwt: unwrapJwt(jwtResp) }, 200);
+      return reply({ memberId: memberDoc.$id, appwrite_uid: memberAppwriteUid, jwt: unwrapJwt(jwtResp) }, 200);
     } catch (e) {
       console.error('Failed to create JWT for member', e);
       await databases.deleteDocument(process.env.DB_ID, collClaims, token).catch(()=>{});
