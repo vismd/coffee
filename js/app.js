@@ -165,10 +165,6 @@ const App = {
                                 alert('✓ Device successfully linked! Click OK to reload and log in.');
                                 window.location.href = window.location.pathname;
                                 return;
-                                
-                                    window.location.href = window.location.pathname;
-                                    return;
-                                }
                             }
 
                             if (parsed.linked && parsed.appwrite_uid) {
