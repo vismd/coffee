@@ -254,7 +254,7 @@ const Analytics = {
         const colors = this.getChartColors();
 
         this.charts.groupPurchases = new Chart(ctx, {
-            type: 'area',
+            type: 'line',
             data: {
                 labels: labels,
                 datasets: [{
