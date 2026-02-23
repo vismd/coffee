@@ -606,7 +606,7 @@ window.showGramsConfigModal = async () => {
                 <p style="color:${colors.secondaryText}"><small>Set how many grams of coffee are used per cup. This affects the dynamic price calculation.</small></p>
                 
                 <label style="display:block; font-weight:600; margin-bottom:8px; color:${colors.text};">Grams per Cup:</label>
-                <input type="number" id="grams-input" placeholder="Grams" step="1" min="1" value="${config.grams_per_cup}" style="width:100%; padding:12px; margin:10px 0; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box;">
+                <input type="number" id="grams-input" placeholder="Grams" step="0.5" min="1" value="${config.grams_per_cup}" style="width:100%; padding:12px; margin:10px 0; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box;">
                 
                 <div style="background:${colors.accentBg}; color:${colors.text}; padding:15px; border-radius:8px; margin:15px 0; font-size:0.9rem;">
                     <p style="margin:0;"><b>Current Price per Cup: €${config.coffee_price_per_cup.toFixed(2)}</b></p>
