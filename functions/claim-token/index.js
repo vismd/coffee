@@ -190,21 +190,45 @@ module.exports = async function (req, res) {
             console.log('UPDATED_MEMBER_VIA_SDK', memberDoc.$id);
           } catch (updErr) {
             console.error('SDK updateDocument failed, falling back to REST', updErr);
-            // Fallback to REST PATCH
+            // Fallback to REST PATCH: Appwrite expects a `data` object for document updates
             const endpoint = (process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
             const url = `${endpoint}/databases/${process.env.DB_ID}/collections/${membersColl}/documents/${memberDoc.$id}`;
-            const resp = await fetch(url, {
-              method: 'PATCH',
-              headers: {
-                'X-Appwrite-Project': process.env.APPWRITE_PROJECT,
-                'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
-                'Content-Type': 'application/json'
-              },
-              body: JSON.stringify({ appwrite_uids: uids })
-            });
-            const data = await resp.json();
-            if (!resp.ok) throw new Error(`update fetch failed: ${resp.status} ${JSON.stringify(data)}`);
-            console.log('UPDATED_MEMBER_VIA_FETCH', JSON.stringify({ id: data.$id || data.id }));
+            try {
+              const fetchBody = { data: { appwrite_uids: uids } };
+              let resp = await fetch(url, {
+                method: 'PATCH',
+                headers: {
+                  'X-Appwrite-Project': process.env.APPWRITE_PROJECT,
+                  'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(fetchBody)
+              });
+              let data = await resp.json();
+              // If the server rejects the array attribute (unknown attribute), try falling back to the older single-field
+              if (!resp.ok && data && typeof data.message === 'string' && data.message.includes('Unknown attribute')) {
+                console.warn('Server rejected appwrite_uids attribute, attempting fallback to appwrite_uid');
+                const fallbackBody = { data: { appwrite_uid: uids[0] } };
+                resp = await fetch(url, {
+                  method: 'PATCH',
+                  headers: {
+                    'X-Appwrite-Project': process.env.APPWRITE_PROJECT,
+                    'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify(fallbackBody)
+                });
+                data = await resp.json();
+                if (!resp.ok) throw new Error(`update fetch failed: ${resp.status} ${JSON.stringify(data)}`);
+                console.log('UPDATED_MEMBER_VIA_FETCH_FALLBACK', JSON.stringify({ id: data.$id || data.id }));
+              } else {
+                if (!resp.ok) throw new Error(`update fetch failed: ${resp.status} ${JSON.stringify(data)}`);
+                console.log('UPDATED_MEMBER_VIA_FETCH', JSON.stringify({ id: data.$id || data.id }));
+              }
+            } catch (fetchErr) {
+              console.error('update fetch failed', fetchErr);
+              throw fetchErr;
+            }
           }
         } else {
           console.log('Scanner UID already linked');
