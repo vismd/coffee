@@ -118,10 +118,10 @@ module.exports = async function (req, res) {
       const endpointRaw = (process.env.APPWRITE_ENDPOINT || '');
       const baseEndpoint = endpointRaw.replace(/\/v1\/?$/,'').replace(/\/$/, '');
       const tryUrls = [
-        `${baseEndpoint}/v1/users/${uid}/jwt`,
-        `${baseEndpoint}/users/${uid}/jwt`,
-        `${baseEndpoint}/v1/users/${uid}/sessions/jwt`,
-        `${baseEndpoint}/users/${uid}/sessions/jwt`
+        `${baseEndpoint}/v1/users/${uid}/jwts`,
+        `${baseEndpoint}/users/${uid}/jwts`,
+        `${baseEndpoint}/v1/users/${uid}/sessions/jwts`,
+        `${baseEndpoint}/users/${uid}/sessions/jwts`
       ];
       for (const url of tryUrls) {
         try {
