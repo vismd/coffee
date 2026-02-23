@@ -83,84 +83,96 @@ module.exports = async function (req, res) {
     }
     if (!token) return reply({ error: 'missing token' }, 400);
 
-    const client = new sdk.Client()
-      .setEndpoint(process.env.APPWRITE_ENDPOINT)
-      .setProject(process.env.APPWRITE_PROJECT)
-      .setKey(process.env.APPWRITE_API_KEY);
-
-    const databases = new sdk.Databases(client);
-    const account = new sdk.Account(client);
-    const users = new sdk.Users(client);
-
-    // Read claim doc
-    // Read claim doc
-    let claim;
-    const collName = process.env.CLAIMS_COLLECTION || 'claims';
-    try {
-      console.log('ATTEMPT_GET_DOCUMENT', JSON.stringify({ db: String(process.env.DB_ID).slice(-8), collection: collName, tokenLength: String(token).length, tokenSample: String(token).slice(0,8) }));
-      claim = await databases.getDocument(process.env.DB_ID, collName, token);
-      console.log('CLAIM_DOC', JSON.stringify({ id: claim.$id || null, memberId: claim.memberId || null, expiresAt: claim.expiresAt || null }));
-    } catch (e) {
-      console.error('Failed to read claim document', e);
-      // Known SDK issue: some runtimes throw "request cannot have request body" for GET via SDK
-      if (e && typeof e.message === 'string' && e.message.includes('request cannot have request body')) {
-        try {
-          // Fallback: call Appwrite REST API directly using fetch (Node 18+ runtime)
-          const endpoint = (process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
-          const url = `${endpoint}/databases/${process.env.DB_ID}/collections/${collName}/documents/${token}`;
-          console.log('FALLBACK_FETCH_URL', url);
-          const fetchResp = await fetch(url, {
-            method: 'GET',
-            headers: {
-              'X-Appwrite-Project': process.env.APPWRITE_PROJECT,
-              'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
-              'Content-Type': 'application/json'
+    if (scannerUid) {
+      try {
+        // If the member already has a canonical appwrite UID, DO NOT overwrite it.
+        if (memberAppwriteUid) {
+          console.log('Member already has appwrite_uid; will not overwrite. Returning JWT for existing UID.');
+        } else {
+          // No canonical uid yet: set the single `appwrite_uid` to the scanner's UID
+          try {
+            await databases.updateDocument(process.env.DB_ID, membersColl, memberDoc.$id, { appwrite_uid: scannerUid });
+            console.log('SET_MEMBER_APPWRITE_UID_VIA_SDK', memberDoc.$id, scannerUid);
+            memberDoc.appwrite_uid = scannerUid;
+            memberAppwriteUid = scannerUid;
+          } catch (updErr) {
+            console.error('SDK updateDocument failed, falling back to REST', updErr);
+            const endpoint = (process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
+            const url = `${endpoint}/databases/${process.env.DB_ID}/collections/${membersColl}/documents/${memberDoc.$id}`;
+            try {
+              const fetchBody = { data: { appwrite_uid: scannerUid } };
+              const resp = await fetch(url, {
+                method: 'PATCH',
+                headers: {
+                  'X-Appwrite-Project': process.env.APPWRITE_PROJECT,
+                  'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(fetchBody)
+              });
+              const data = await resp.json();
+              if (!resp.ok) throw new Error(`update fetch failed: ${resp.status} ${JSON.stringify(data)}`);
+              console.log('SET_MEMBER_VIA_FETCH', JSON.stringify({ id: data.$id || data.id }));
+              memberDoc.appwrite_uid = scannerUid;
+              memberAppwriteUid = scannerUid;
+            } catch (fetchErr) {
+              console.error('update fetch failed', fetchErr);
+              throw fetchErr;
             }
-          });
-          const data = await fetchResp.json();
-          if (!fetchResp.ok) throw new Error(`fetch failed: ${fetchResp.status} ${JSON.stringify(data)}`);
-          claim = data;
-          console.log('CLAIM_DOC_FALLBACK', JSON.stringify({ id: claim.$id || null, memberId: claim.memberId || null, expiresAt: claim.expiresAt || null }));
-        } catch (fetchErr) {
-          console.error('Fallback fetch failed', fetchErr);
-          return reply({ error: 'invalid token', details: fetchErr.message }, 400);
+          }
         }
-      } else {
-        return reply({ error: 'invalid token', details: e.message }, 400);
+
+        // Attempt to create a JWT for the canonical Appwrite user id (server-side)
+        let jwtResp = null;
+        if (memberAppwriteUid) {
+          try {
+            if (typeof users.createJWT === 'function') {
+              jwtResp = await users.createJWT(memberAppwriteUid);
+            } else {
+              // Try several REST endpoints to handle Appwrite version differences
+              const endpoint = (process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
+              const tryUrls = [
+                `${endpoint}/v1/users/${memberAppwriteUid}/jwt`,
+                `${endpoint}/users/${memberAppwriteUid}/jwt`,
+                `${endpoint}/v1/users/${memberAppwriteUid}/sessions/jwt`,
+                `${endpoint}/users/${memberAppwriteUid}/sessions/jwt`
+              ];
+              let got = null;
+              for (const url of tryUrls) {
+                try {
+                  const resp = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                      'X-Appwrite-Project': process.env.APPWRITE_PROJECT,
+                      'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
+                      'Content-Type': 'application/json'
+                    }
+                  });
+                  const data = await resp.json();
+                  if (resp.ok && data) { got = data; break; }
+                  console.warn('JWT endpoint attempt failed', url, resp.status, data);
+                } catch (e) {
+                  console.warn('JWT fetch error for', url, e);
+                }
+              }
+              if (!got) throw new Error('No usable JWT endpoint found');
+              jwtResp = got;
+            }
+            console.log('CREATED_JWT_FOR', memberAppwriteUid);
+          } catch (jwtErr) {
+            console.error('Failed to create JWT for', memberAppwriteUid, jwtErr);
+            jwtResp = null;
+          }
+        }
+
+        // Consume claim
+        await databases.deleteDocument(process.env.DB_ID, process.env.CLAIMS_COLLECTION || 'claims', token).catch(()=>{});
+        return reply({ linked: true, memberId: memberDoc.$id, jwt: jwtResp ? jwtResp.jwt : undefined }, 200);
+      } catch (linkErr) {
+        console.error('Failed to link scanner UID', linkErr);
+        return reply({ error: 'server error', details: linkErr.message }, 500);
       }
     }
-    if (!claim) return reply({ error: 'invalid token' }, 400);
-
-    // Expiry check
-    if (claim.expiresAt && new Date(claim.expiresAt) < new Date()) {
-      await databases.deleteDocument(process.env.DB_ID, process.env.CLAIMS_COLLECTION || 'claims', token).catch(()=>{});
-      return reply({ error: 'token expired' }, 400);
-    }
-
-    let memberDoc;
-    const membersColl = process.env.MEMBERS_COLLECTION || 'members';
-    try {
-      memberDoc = await databases.getDocument(process.env.DB_ID, membersColl, claim.memberId);
-      console.log('MEMBER_DOC', JSON.stringify({ id: memberDoc.$id || null, appwrite_uid: !!(memberDoc && memberDoc.appwrite_uid) }));
-    } catch (e) {
-      console.error('Failed to read member document', e);
-      if (e && typeof e.message === 'string' && e.message.includes('request cannot have request body')) {
-        try {
-          // Fallback: REST GET directly
-          const endpoint = (process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
-          const url = `${endpoint}/databases/${process.env.DB_ID}/collections/${membersColl}/documents/${claim.memberId}`;
-          console.log('FALLBACK_MEMBER_FETCH_URL', url);
-          const fetchResp = await fetch(url, {
-            method: 'GET',
-            headers: {
-              'X-Appwrite-Project': process.env.APPWRITE_PROJECT,
-              'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
-              'Content-Type': 'application/json'
-            }
-          });
-          const data = await fetchResp.json();
-          if (!fetchResp.ok) throw new Error(`fetch failed: ${fetchResp.status} ${JSON.stringify(data)}`);
-          memberDoc = data;
           console.log('MEMBER_DOC_FALLBACK', JSON.stringify({ id: memberDoc.$id || null, appwrite_uid: !!(memberDoc && memberDoc.appwrite_uid) }));
         } catch (fetchErr) {
           console.error('Fallback member fetch failed', fetchErr);

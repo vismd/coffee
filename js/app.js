@@ -141,35 +141,53 @@ const App = {
                         }
 
                         if (parsed) {
-                            if (parsed && parsed.jwt) {
+                            // Robust JWT extraction from various function response shapes
+                            const findJwt = (obj) => {
+                                if (!obj) return null;
+                                if (typeof obj === 'string') return null;
+                                if (obj.jwt && typeof obj.jwt === 'string') return obj.jwt;
+                                if (obj.token && typeof obj.token === 'string') return obj.token;
+                                if (obj.data && obj.data.jwt) return obj.data.jwt;
+                                if (obj.body && obj.body.jwt) return obj.body.jwt;
+                                if (obj.response && obj.response.jwt) return obj.response.jwt;
+                                if (obj.result && obj.result.jwt) return obj.result.jwt;
+                                return null;
+                            };
+
+                            const jwt = findJwt(parsed);
+                            if (jwt) {
                                 try {
-                                    await client.setJWT(parsed.jwt);
-                                    // Small delay to allow SDK internals (BroadcastChannel/EventTarget) to initialize
+                                    await client.setJWT(jwt);
                                     await new Promise(r => setTimeout(r, 150));
                                     window.location.href = window.location.pathname;
                                     return;
                                 } catch (setErr) {
-                                    console.warn('client.setJWT failed, attempting fallback and reload', setErr);
-                                    try {
-                                        localStorage.setItem('APPWRITE_JWT_FALLBACK', parsed.jwt);
-                                    } catch (e) {
-                                        console.error('Failed to write fallback JWT to localStorage', e);
-                                    }
-                                    // Still reload so page can pick up the new JWT (or show error)
+                                    console.warn('client.setJWT failed, storing fallback JWT and reloading', setErr);
+                                    try { localStorage.setItem('APPWRITE_JWT_FALLBACK', jwt); } catch (e) { console.error('Failed to write fallback JWT', e); }
                                     window.location.href = window.location.pathname;
                                     return;
-                                }
-                                return;
-                            } else {
-                                if (parsed && parsed.linked) {
-                                    // Server linked this scanner UID to the member; reload so DB lookup picks it up
-                                    window.location.href = window.location.pathname;
-                                    return;
-                                } else {
-                                    console.warn('Claim exchange completed but no jwt returned:', parsed);
-                                    alert('Claim exchange failed: ' + (parsed?.error || 'no jwt returned'));
                                 }
                             }
+
+                            if (parsed.linked) {
+                                // Server linked this scanner UID to the member; try to verify the link by fetching the member record for this session UID
+                                try {
+                                    const member = await DB.getMemberByUid(sessionUser.$id);
+                                    if (member) {
+                                        // Member now resolves to this device; reload to continue as linked
+                                        window.location.href = window.location.pathname;
+                                        return;
+                                    }
+                                } catch (dbCheckErr) {
+                                    console.debug('DB check after claim execution failed', dbCheckErr);
+                                }
+                                // If we couldn't verify membership, still reload so the app can pick up any server-side changes
+                                window.location.href = window.location.pathname;
+                                return;
+                            }
+
+                            console.warn('Claim exchange completed but no jwt returned:', parsed);
+                            alert('Claim exchange failed: ' + (parsed?.error || 'no jwt returned'));
                         }
                     } else {
                         console.error('Claim execution did not complete in time:', check);
@@ -366,7 +384,6 @@ window.showClaimQR = async (memberId) => {
                     try {
                         linkInput.select();
                         document.execCommand('copy');
-                        alert('Link copied to clipboard');
                     } catch (e) {
                         alert('Copy failed; select and copy manually');
                     }
