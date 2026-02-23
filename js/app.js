@@ -160,34 +160,15 @@ const App = {
 
                             const jwt = findJwt(parsed);
                             console.info('Claim exchange response:', { parsed, extractedJwt: jwt ? (typeof jwt === 'string' ? '***' : { sessionId: '***', sessionSecret: '***' }) : null });
-                            if (jwt && typeof jwt === 'object' && jwt.sessionId && jwt.sessionSecret) {
-                                console.info('Session created. Storing and initializing...');
-                                try {
-                                    // For anonymous/session-based auth: store session directly via SDK internal mechanism
-                                    // The sessionSecret is what the browser needs to authenticate
-                                    await client.setJWT(jwt.sessionSecret);
-                                    // Also ensure localStorage recognizes this session
-                                    const projectId = client.config.project;
-                                    localStorage.setItem(`appwrite_session_${projectId}`, JSON.stringify({
-                                        id: jwt.sessionId,
-                                        userId: parsed.appwrite_uid
-                                    }));
-                                    console.info('Session initialized successfully');
-                                    alert('✓ Device successfully linked and authenticated! Click OK to reload.');
-                                    await new Promise(r => setTimeout(r, 200));
-                                    window.location.href = window.location.pathname;
-                                    return;
-                                } catch (setErr) {
-                                    console.warn('Failed to initialize session:', setErr);
-                                }
-                            }
-
+                            
                             if (parsed.linked && parsed.appwrite_uid) {
                                 // Device successfully linked on server
                                 console.info('Device linked to appwrite_uid:', parsed.appwrite_uid);
-                                // Store the linked UID so the app can offer quick-login or auto-prompt after reload
+                                // Store the linked UID for the app to recognize on reload
                                 localStorage.setItem('LINKED_APPWRITE_UID', parsed.appwrite_uid);
-                                alert('✓ Device successfully linked! You can now log in. Click OK to reload.');
+                                localStorage.setItem('LINKED_MEMBER_ID', parsed.memberId);
+                                alert('✓ Device successfully linked to member! Click OK to reload.');
+                                await new Promise(r => setTimeout(r, 200));
                                 window.location.href = window.location.pathname;
                                 return;
                             }
