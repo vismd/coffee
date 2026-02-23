@@ -114,8 +114,23 @@ const App = {
 
                         if (parsed) {
                             if (parsed && parsed.jwt) {
-                                await client.setJWT(parsed.jwt);
-                                window.location.href = window.location.pathname;
+                                try {
+                                    await client.setJWT(parsed.jwt);
+                                    // Small delay to allow SDK internals (BroadcastChannel/EventTarget) to initialize
+                                    await new Promise(r => setTimeout(r, 150));
+                                    window.location.href = window.location.pathname;
+                                    return;
+                                } catch (setErr) {
+                                    console.warn('client.setJWT failed, attempting fallback and reload', setErr);
+                                    try {
+                                        localStorage.setItem('APPWRITE_JWT_FALLBACK', parsed.jwt);
+                                    } catch (e) {
+                                        console.error('Failed to write fallback JWT to localStorage', e);
+                                    }
+                                    // Still reload so page can pick up the new JWT (or show error)
+                                    window.location.href = window.location.pathname;
+                                    return;
+                                }
                                 return;
                             } else {
                                 if (parsed && parsed.linked) {
