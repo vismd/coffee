@@ -204,8 +204,11 @@ const App = {
     async renderDashboard() {
         const app = document.getElementById('app');
         
-        // Render personal UI
-        app.innerHTML = UI.renderUserStats(this.userMember);
+        // Get dynamic coffee price
+        const config = await DB.getGlobalConfig();
+        
+        // Render personal UI with dynamic price
+        app.innerHTML = UI.renderUserStats(this.userMember, config.coffee_price_per_cup);
 
         // Show a compact collective pot and recent group activity on main page
         try {
@@ -249,13 +252,16 @@ window.handleCoffee = async () => {
         return;
     }
 
-    if (confirm(`Confirm coffee for ${App.userMember.name}?`)) {
-        try {
-            await DB.registerCoffee(App.userMember, 0.50);
+    try {
+        const config = await DB.getGlobalConfig();
+        const price = config.coffee_price_per_cup;
+        
+        if (confirm(`Confirm coffee for ${App.userMember.name}? (€${price.toFixed(2)})`)) {
+            await DB.registerCoffeeWithDynamicPrice(App.userMember);
             location.reload(); 
-        } catch (e) {
-            alert("Transaction failed. Check Appwrite permissions.");
         }
+    } catch (e) {
+        alert("Transaction failed. Check Appwrite permissions.");
     }
 };
 
@@ -466,6 +472,140 @@ window.submitExpense = async () => {
         alert("Error saving expense. Check console for details.");
         // Re-enable button on error
         const saveBtn = document.querySelector('#expense-modal .btn-primary');
+        saveBtn.innerText = "Save";
+        saveBtn.disabled = false;
+    }
+};
+
+window.showCoffeeBeanModal = () => {
+    if (document.getElementById('bean-modal')) return;
+
+    const modalHtml = `
+        <div class="modal-overlay" id="bean-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;">
+            <div class="card modal" style="background:white; padding:30px; border-radius:24px; max-width:400px; width:90%;">
+                <h3 style="margin-top:0">🫘 Buy Coffee Beans</h3>
+                <p><small>Record a coffee bean purchase and update the price per cup.</small></p>
+                
+                <input type="number" id="bean-amount" placeholder="Cost (€)" step="0.01" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:8px;">
+                <input type="number" id="bean-grams" placeholder="Weight (grams)" step="1" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:8px;">
+                <div style="background:#f0f0f0; padding:15px; border-radius:8px; margin:15px 0; font-size:0.9rem;">
+                    <p style="margin:0 0 8px 0;"><b>Calculation:</b></p>
+                    <p style="margin:0;">Price/kg: <span id="price-per-kg">€0.00</span></p>
+                    <p style="margin:5px 0 0 0;">Price/cup: <span id="price-per-cup">€0.00</span> <span id="grams-info"></span></p>
+                </div>
+                
+                <div style="display:flex; gap:10px;">
+                    <button onclick="window.submitCoffeeBeans()" class="btn-primary" style="flex:2">Save</button>
+                    <button onclick="document.getElementById('bean-modal').remove()" class="btn-cancel" style="flex:1">Cancel</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Add real-time calculation
+    const amountInput = document.getElementById('bean-amount');
+    const gramsInput = document.getElementById('bean-grams');
+
+    const updateCalculation = async () => {
+        const amount = parseFloat(amountInput.value) || 0;
+        const grams = parseFloat(gramsInput.value) || 1;
+        const config = await DB.getGlobalConfig();
+        
+        const pricePerKg = amount > 0 ? (amount / grams * 1000).toFixed(2) : '0.00';
+        const pricePerCup = amount > 0 ? (amount / grams * config.grams_per_cup).toFixed(2) : '0.00';
+        
+        document.getElementById('price-per-kg').textContent = '€' + pricePerKg;
+        document.getElementById('price-per-cup').textContent = '€' + pricePerCup;
+        document.getElementById('grams-info').textContent = `(${config.grams_per_cup}g/cup)`;
+    };
+
+    amountInput.addEventListener('input', updateCalculation);
+    gramsInput.addEventListener('input', updateCalculation);
+    updateCalculation();
+};
+
+window.submitCoffeeBeans = async () => {
+    const amountInput = document.getElementById('bean-amount');
+    const gramsInput = document.getElementById('bean-grams');
+
+    const amount = parseFloat(amountInput.value);
+    const grams = parseFloat(gramsInput.value);
+
+    if (!amount || amount <= 0 || !grams || grams <= 0) {
+        alert("Please enter valid amount and weight.");
+        return;
+    }
+
+    try {
+        const saveBtn = document.querySelector('#bean-modal .btn-primary');
+        saveBtn.innerText = "Saving...";
+        saveBtn.disabled = true;
+
+        await DB.recordCoffeeBeanPurchase(amount, grams);
+        
+        alert("Coffee beans purchased! Price per cup updated.");
+        location.reload();
+    } catch (e) {
+        console.error(e);
+        alert("Error saving purchase. Check console for details.");
+        const saveBtn = document.querySelector('#bean-modal .btn-primary');
+        saveBtn.innerText = "Save";
+        saveBtn.disabled = false;
+    }
+};
+
+window.showGramsConfigModal = async () => {
+    if (document.getElementById('grams-modal')) return;
+
+    const config = await DB.getGlobalConfig();
+
+    const modalHtml = `
+        <div class="modal-overlay" id="grams-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;">
+            <div class="card modal" style="background:white; padding:30px; border-radius:24px; max-width:400px; width:90%;">
+                <h3 style="margin-top:0">⚙️ Cup Weight Configuration</h3>
+                <p><small>Set how many grams of coffee are used per cup. This affects the dynamic price calculation.</small></p>
+                
+                <label style="display:block; font-weight:600; margin-bottom:8px; color:#2d3436;">Grams per Cup:</label>
+                <input type="number" id="grams-input" placeholder="Grams" step="1" min="1" value="${config.grams_per_cup}" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:8px; box-sizing:border-box;">
+                
+                <div style="background:#f0f0f0; padding:15px; border-radius:8px; margin:15px 0; font-size:0.9rem;">
+                    <p style="margin:0;"><b>Current Price per Cup: €${config.coffee_price_per_cup.toFixed(2)}</b></p>
+                    <p style="margin:8px 0 0 0; color:#636e72; font-size:0.85rem;">This will be updated the next time beans are purchased.</p>
+                </div>
+                
+                <div style="display:flex; gap:10px;">
+                    <button onclick="window.submitGramsConfig()" class="btn-primary" style="flex:2">Save</button>
+                    <button onclick="document.getElementById('grams-modal').remove()" class="btn-cancel" style="flex:1">Cancel</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
+
+window.submitGramsConfig = async () => {
+    const gramsInput = document.getElementById('grams-input');
+    const grams = parseFloat(gramsInput.value);
+
+    if (!grams || grams <= 0) {
+        alert("Please enter a valid gram value.");
+        return;
+    }
+
+    try {
+        const saveBtn = document.querySelector('#grams-modal .btn-primary');
+        saveBtn.innerText = "Saving...";
+        saveBtn.disabled = true;
+
+        await DB.updateGramsPerCup(grams);
+        
+        alert("Cup weight configuration updated!");
+        location.reload();
+    } catch (e) {
+        console.error(e);
+        alert("Error saving configuration. Check console for details.");
+        const saveBtn = document.querySelector('#grams-modal .btn-primary');
         saveBtn.innerText = "Save";
         saveBtn.disabled = false;
     }

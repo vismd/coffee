@@ -106,5 +106,82 @@ const DB = {
         });
 
         return await this.logAction('TOPUP', amount, memberDoc.$id, memberDoc.name, message);
+    },
+
+    // Get global configuration (grams per cup, etc.)
+    async getGlobalConfig() {
+        try {
+            const config = await databases.getDocument(DB_ID, COLL_GLOBAL, 'main');
+            return {
+                group_funds: config.group_funds || 0,
+                grams_per_cup: config.grams_per_cup || 18, // Default 18g per cup
+                coffee_price_per_cup: config.coffee_price_per_cup || 0.50
+            };
+        } catch (error) {
+            console.error("Error fetching global config:", error);
+            return {
+                group_funds: 0,
+                grams_per_cup: 18,
+                coffee_price_per_cup: 0.50
+            };
+        }
+    },
+
+    // Update grams per cup configuration
+    async updateGramsPerCup(gramsPerCup) {
+        try {
+            const config = await databases.getDocument(DB_ID, COLL_GLOBAL, 'main');
+            await databases.updateDocument(DB_ID, COLL_GLOBAL, 'main', {
+                grams_per_cup: parseFloat(gramsPerCup)
+            });
+            return true;
+        } catch (error) {
+            console.error("Error updating grams per cup:", error);
+            throw error;
+        }
+    },
+
+    // Record coffee bean purchase
+    async recordCoffeeBeanPurchase(amount, grams, message = "") {
+        try {
+            const config = await this.getGlobalConfig();
+            const pricePerGram = amount / grams;
+            const pricePerCup = pricePerGram * config.grams_per_cup;
+
+            // Update global funds
+            const global = await databases.getDocument(DB_ID, COLL_GLOBAL, 'main');
+            await databases.updateDocument(DB_ID, COLL_GLOBAL, 'main', {
+                group_funds: global.group_funds - amount,
+                coffee_price_per_cup: pricePerCup
+            });
+
+            // Log the bean purchase
+            const logMessage = `${grams}g purchased - €${(pricePerGram * 1000).toFixed(2)}/kg (€${pricePerCup.toFixed(2)}/cup)`;
+            return await this.logAction('BEANS', -amount, 'ADMIN', 'System', logMessage);
+        } catch (error) {
+            console.error("Error recording bean purchase:", error);
+            throw error;
+        }
+    },
+
+    // Register coffee with dynamic pricing
+    async registerCoffeeWithDynamicPrice(memberDoc) {
+        try {
+            const config = await this.getGlobalConfig();
+            const price = config.coffee_price_per_cup;
+            
+            const newBalance = memberDoc.balance - price;
+            const newTotal = memberDoc.total_coffees + 1;
+            
+            await databases.updateDocument(DB_ID, COLL_MEMBERS, memberDoc.$id, {
+                balance: newBalance,
+                total_coffees: newTotal
+            });
+            
+            return await this.logAction('COFFEE', -price, memberDoc.$id, memberDoc.name);
+        } catch (error) {
+            console.error("Error registering coffee:", error);
+            throw error;
+        }
     }
 };

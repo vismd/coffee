@@ -1,5 +1,5 @@
 const UI = {
-    renderUserStats(member) {
+    renderUserStats(member, coffeePrice = 0.50) {
         return `
             <div class="card welcome-card">
                 <div class="welcome-header">
@@ -10,7 +10,7 @@ const UI = {
                     <div class="stat"><span>Balance</span> <b>€${member.balance.toFixed(2)}</b></div>
                     <div class="stat"><span>Coffees</span> <b>${member.total_coffees}</b></div>
                 </div>
-                <button onclick="window.handleCoffee()" class="btn-primary">☕ Get Coffee (€0.50)</button>
+                <button onclick="window.handleCoffee()" class="btn-primary">☕ Get Coffee (€${coffeePrice.toFixed(2)})</button>
             </div>
         `;
     },
@@ -34,10 +34,12 @@ const UI = {
                         <div class="card admin-card fade-in">
                                 <div class="group-pot">
                                     <p>Collective Pot</p>
-                                    <h2>€${(group_funds || 0).toFixed(2)}</h2>
+                                    <h2>€${(groupFunds || 0).toFixed(2)}</h2>
                                 </div>
-                                <div style="margin-top:12px; display:flex; gap:10px;">
+                                <div style="margin-top:12px; display:flex; gap:10px; flex-wrap: wrap;">
                                     <button class="btn-primary" onclick="window.showExpenseModal()">Record Group Purchase</button>
+                                    <button class="btn-primary" onclick="window.showCoffeeBeanModal()" style="background: #6c5ce7;">🫘 Buy Coffee Beans</button>
+                                    <button class="btn-primary" onclick="window.showGramsConfigModal()" style="background: #00b894;">⚙️ Config Cup Weight</button>
                                 </div>
                                 <div class="member-list">
                                         ${rows}
