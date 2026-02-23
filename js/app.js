@@ -160,12 +160,23 @@ const App = {
 
                             const jwt = findJwt(parsed);
                             console.info('Claim exchange response:', { parsed, extractedJwt: jwt ? (typeof jwt === 'string' ? '***' : { sessionId: '***', sessionSecret: '***' }) : null });
-                            if (jwt) {
-                                console.info('JWT received, but relying on server-side session instead. Reloading...');
-                                alert('✓ Device successfully linked! Click OK to reload and log in.');
-                                window.location.href = window.location.pathname;
-                                return;
-                            }
+                            if (jwt && typeof jwt === 'object' && jwt.sessionId && jwt.sessionSecret) {
+                                console.info('Session created. Storing and initializing...');
+                                try {
+                                    // For anonymous/session-based auth: store session directly via SDK internal mechanism
+                                    // The sessionSecret is what the browser needs to authenticate
+                                    await client.setJWT(jwt.sessionSecret);
+                                    // Also ensure localStorage recognizes this session
+                                    const projectId = client.config.project;
+                                    localStorage.setItem(`appwrite_session_${projectId}`, JSON.stringify({
+                                        id: jwt.sessionId,
+                                        userId: parsed.appwrite_uid
+                                    }));
+                                    console.info('Session initialized successfully');
+                                    alert('✓ Device successfully linked and authenticated! Click OK to reload.');
+                                    await new Promise(r => setTimeout(r, 200));
+                                    window.location.href = window.location.pathname;
+                                    return;
 
                             if (parsed.linked && parsed.appwrite_uid) {
                                 // Device successfully linked on server

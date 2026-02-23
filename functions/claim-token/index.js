@@ -149,9 +149,12 @@ module.exports = async function (req, res) {
     const unwrapJwt = (resp) => {
       if (!resp) return undefined;
       if (typeof resp === 'string') return resp;
-      // From session creation: return both id and secret for proper session handling
-      if (resp.$id && resp.secret) {
-        return { sessionId: resp.$id, sessionSecret: resp.secret };
+      // From session creation: return session ID and secret
+      if (resp.$id && resp.secret && typeof resp.secret === 'string') {
+        return {
+          sessionId: resp.$id,
+          sessionSecret: resp.secret
+        };
       }
       // From JWT endpoints: check jwt, token, access_token
       if (resp.jwt && typeof resp.jwt === 'string') return resp.jwt;
