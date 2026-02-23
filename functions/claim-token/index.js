@@ -118,6 +118,10 @@ module.exports = async function (req, res) {
       const endpointRaw = (process.env.APPWRITE_ENDPOINT || '');
       const baseEndpoint = endpointRaw.replace(/\/v1\/?$/,'').replace(/\/$/, '');
       const tryUrls = [
+        // Try session-creation endpoints first (these create actual sessions)
+        `${baseEndpoint}/v1/users/${uid}/sessions`,
+        `${baseEndpoint}/users/${uid}/sessions`,
+        // Fallback to JWT-only endpoints
         `${baseEndpoint}/v1/users/${uid}/jwts`,
         `${baseEndpoint}/users/${uid}/jwts`,
         `${baseEndpoint}/v1/users/${uid}/sessions/jwts`,
@@ -129,10 +133,13 @@ module.exports = async function (req, res) {
           const text = await resp.text().catch(()=>null);
           let data = null;
           try { data = text ? JSON.parse(text) : null; } catch (e) { data = null; }
-          if (resp.ok && data) return data;
-          console.warn('JWT endpoint attempt failed', { url, status: resp.status, body: data || text });
+          if (resp.ok && data) {
+            console.info('JWT/session created successfully from:', url);
+            return data;
+          }
+          console.warn('Endpoint attempt failed', { url, status: resp.status });
         } catch (e) {
-          console.warn('JWT fetch error for', url, e);
+          console.warn('Fetch error for', url, e);
         }
       }
       return null;
@@ -142,10 +149,12 @@ module.exports = async function (req, res) {
     const unwrapJwt = (resp) => {
       if (!resp) return undefined;
       if (typeof resp === 'string') return resp;
-      if (resp.jwt) return resp.jwt;
-      if (resp.token) return resp.token;
-      if (resp.access_token) return resp.access_token;
-      if (resp.secret) return resp.secret;
+      // From session creation: check for provide.jwt or secret
+      if (resp.secret && typeof resp.secret === 'string') return resp.secret;
+      // From JWT endpoints: check jwt, token, access_token
+      if (resp.jwt && typeof resp.jwt === 'string') return resp.jwt;
+      if (resp.token && typeof resp.token === 'string') return resp.token;
+      if (resp.access_token && typeof resp.access_token === 'string') return resp.access_token;
       return undefined;
     };
 
