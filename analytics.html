@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - Coffee Co-op</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/appwrite@14.0.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
+</head>
+<body>
+    <nav>
+        <span class="logo">☕ Co-op</span>
+        <div id="nav-links"></div>
+        <button id="theme-toggle" class="theme-toggle" onclick="window.toggleTheme()" title="Toggle dark mode">🌙</button>
+    </nav>
+
+    <main id="app" class="analytics-container">
+        <div class="analytics-header">
+            <h1>Analytics Dashboard</h1>
+            <button class="btn-primary" onclick="window.location.href='index.html'">← Back to Dashboard</button>
+        </div>
+
+        <div class="analytics-grid">
+            <!-- User Stats Section -->
+            <div class="analytics-section">
+                <h2>Your Coffee Consumption</h2>
+                <div class="chart-container">
+                    <canvas id="userCoffeeChart"></canvas>
+                </div>
+                <div id="userStatsText" class="stats-text"></div>
+            </div>
+
+            <!-- Group Comparison Section -->
+            <div class="analytics-section">
+                <h2>Group Consumption Comparison</h2>
+                <div class="chart-container">
+                    <canvas id="groupCoffeeChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Group Purchases Section -->
+            <div class="analytics-section">
+                <h2>Group Purchases Over Time</h2>
+                <div class="chart-container">
+                    <canvas id="groupPurchasesChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Spending Analysis Section -->
+            <div class="analytics-section">
+                <h2>User Spending Analysis</h2>
+                <div class="chart-container">
+                    <canvas id="spendingChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Purchase Breakdown Section -->
+            <div class="analytics-section">
+                <h2>Group Purchase Categories</h2>
+                <div class="chart-container">
+                    <canvas id="purchaseBreakdownChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Activity Timeline Section -->
+            <div class="analytics-section">
+                <h2>Recent Activity</h2>
+                <div id="activityFeed" class="activity-feed"></div>
+            </div>
+        </div>
+    </main>
+
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/db.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/analytics.js"></script>
+</body>
+</html>

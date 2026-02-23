@@ -34,7 +34,7 @@ const UI = {
                         <div class="card admin-card fade-in">
                                 <div class="group-pot">
                                     <p>Collective Pot</p>
-                                    <h2>€${(global.group_funds || 0).toFixed(2)}</h2>
+                                    <h2>€${(group_funds || 0).toFixed(2)}</h2>
                                 </div>
                                 <div style="margin-top:12px; display:flex; gap:10px;">
                                     <button class="btn-primary" onclick="window.showExpenseModal()">Record Group Purchase</button>

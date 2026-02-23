@@ -224,6 +224,11 @@ const App = {
             console.warn('Failed to render group pot on main page', e);
         }
 
+        // Add analytics button
+        const analyticsBtn = document.createElement('div');
+        analyticsBtn.innerHTML = `<div style="margin-top:12px"><button class="btn-primary" onclick="window.location.href='analytics.html'">📊 Analytics</button></div>`;
+        app.appendChild(analyticsBtn);
+
         // If admin, show a button to open the Admin view (separate, gated)
         const isAdmin = await Auth.checkAdminStatus();
         if (isAdmin) {
