@@ -22,18 +22,28 @@ const UI = {
                 <span class="member-balance ${m.balance < 0 ? 'neg' : 'pos'}">
                     €${m.balance.toFixed(2)}
                 </span>
-                <button class="btn-topup" onclick="window.showAddFunds('${m.$id}')">+</button>
+                <div style="display:flex; gap:6px; align-items:center;">
+                  <button class="btn-qr-small" title="Show claim QR" onclick="window.showClaimQR('${m.$id}')">📱</button>
+                  <button class="btn-topup" onclick="window.showAddFunds('${m.$id}')">+</button>
+                </div>
             </div>
         `).join('');
 
         // THIS IS THE MISSING PIECE:
         return `
             <div class="card admin-card fade-in">
-                <div class="group-pot">
-                    <p>Collective Pot</p>
-                    <h2>€${groupFunds.toFixed(2)}</h2>
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+                  <div class="group-pot">
+                      <p>Collective Pot</p>
+                      <h2>€${groupFunds.toFixed(2)}</h2>
+                  </div>
+                  <div>
+                    <button class="btn-secondary" onclick="App.init()">Return to main view</button>
+                  </div>
                 </div>
-                <button class="btn-primary" onclick="window.showExpenseModal()">Record Group Purchase</button>
+                <div style="margin-top:12px; display:flex; gap:10px;">
+                  <button class="btn-primary" onclick="window.showExpenseModal()">Record Group Purchase</button>
+                </div>
                 <div class="member-list">
                     ${rows}
                 </div>
