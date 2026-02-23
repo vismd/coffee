@@ -161,15 +161,16 @@ const App = {
                             const jwt = findJwt(parsed);
                             console.info('Claim exchange response:', { parsed, extractedJwt: jwt ? (typeof jwt === 'string' ? '***' : { sessionId: '***', sessionSecret: '***' }) : null });
                             if (jwt) {
-                                console.info('Attempting to set JWT for device linking...');
+                                console.info('Attempting to set session for device linking...');
                                 try {
                                     // Handle both JWT strings and session objects
-                                    if (typeof jwt === 'string') {
-                                        await client.setJWT(jwt);
-                                    } else if (jwt.sessionId && jwt.sessionSecret) {
-                                        // Session-based auth: store session credentials
-                                        await client.setSession(jwt.sessionSecret, jwt.sessionId);
+                                    let tokenToSet = jwt;
+                                    if (typeof jwt === 'object' && jwt.sessionSecret) {
+                                        // Session response: use the secret as the JWT
+                                        tokenToSet = jwt.sessionSecret;
+                                        console.info('Using session secret as JWT token');
                                     }
+                                    await client.setJWT(tokenToSet);
                                     console.info('Session/JWT applied successfully, reloading...');
                                     await new Promise(r => setTimeout(r, 150));
                                     alert('✓ Device successfully linked! Check console logs. Click OK to reload.');
@@ -177,7 +178,7 @@ const App = {
                                     return;
                                 } catch (setErr) {
                                     console.warn('client.setJWT failed, storing fallback JWT and reloading', setErr);
-                                    try { localStorage.setItem('APPWRITE_JWT_FALLBACK', jwt); } catch (e) { console.error('Failed to write fallback JWT', e); }
+                                    try { localStorage.setItem('APPWRITE_JWT_FALLBACK', typeof jwt === 'string' ? jwt : jwt.sessionSecret); } catch (e) { console.error('Failed to write fallback JWT', e); }
                                     window.location.href = window.location.pathname;
                                     return;
                                 }
