@@ -378,7 +378,6 @@ window.showClaimQR = async (memberId) => {
             document.getElementById('claim-copy-btn').addEventListener('click', async () => {
                 try {
                     await navigator.clipboard.writeText(claimUrl);
-                    alert('Link copied to clipboard');
                 } catch (err) {
                     // Fallback for older browsers
                     try {
