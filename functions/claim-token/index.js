@@ -1,10 +1,34 @@
 const sdk = require('node-appwrite');
 
+// Safe responder: Appwrite runtimes normally provide res.json,
+// but some runners or wrappers may not. Use a fallback that logs
+// a predictable marker so the execution output is still visible.
+function sendJson(res, body, status = 200) {
+  if (res && typeof res.json === 'function') {
+    return res.json(body, status);
+  }
+
+  // Older or custom runtimes may provide res.end
+  if (res && typeof res.end === 'function') {
+    try {
+      res.statusCode = status;
+    } catch (e) {}
+    return res.end(JSON.stringify(body));
+  }
+
+  // Fallback: print to stdout with a clear marker for logs
+  console.log('FUNCTION_FALLBACK_RESPONSE', JSON.stringify({ status, body }));
+  return;
+}
+
 module.exports = async function (req, res) {
+  const reply = (body, status) => sendJson(res, body, status);
+
   try {
-    const payload = JSON.parse(req.payload || '{}');
+    const payloadStr = (req && req.payload) ? req.payload : '{}';
+    const payload = JSON.parse(payloadStr || '{}');
     const token = payload.token || payload.claim_token;
-    if (!token) return res.json({ error: 'missing token' }, 400);
+    if (!token) return reply({ error: 'missing token' }, 400);
 
     const client = new sdk.Client()
       .setEndpoint(process.env.APPWRITE_ENDPOINT)
@@ -16,16 +40,16 @@ module.exports = async function (req, res) {
 
     // Read claim doc
     const claim = await databases.getDocument(process.env.DB_ID, process.env.CLAIMS_COLLECTION || 'claims', token);
-    if (!claim) return res.json({ error: 'invalid token' }, 400);
+    if (!claim) return reply({ error: 'invalid token' }, 400);
 
     // Expiry check
     if (claim.expiresAt && new Date(claim.expiresAt) < new Date()) {
       await databases.deleteDocument(process.env.DB_ID, process.env.CLAIMS_COLLECTION || 'claims', token).catch(()=>{});
-      return res.json({ error: 'token expired' }, 400);
+      return reply({ error: 'token expired' }, 400);
     }
 
     const memberDoc = await databases.getDocument(process.env.DB_ID, process.env.MEMBERS_COLLECTION || 'members', claim.memberId);
-    if (!memberDoc || !memberDoc.appwrite_uid) return res.json({ error: 'no linked user' }, 400);
+    if (!memberDoc || !memberDoc.appwrite_uid) return reply({ error: 'no linked user' }, 400);
 
     // Create JWT for that user
     const jwtResp = await account.createJWT(memberDoc.appwrite_uid);
@@ -33,9 +57,9 @@ module.exports = async function (req, res) {
     // Consume claim
     await databases.deleteDocument(process.env.DB_ID, process.env.CLAIMS_COLLECTION || 'claims', token).catch(()=>{});
 
-    return res.json({ jwt: jwtResp.jwt });
+    return reply({ jwt: jwtResp.jwt }, 200);
   } catch (err) {
     console.error(err);
-    return res.json({ error: 'server error', details: err.message }, 500);
+    return reply({ error: 'server error', details: err.message }, 500);
   }
 };
