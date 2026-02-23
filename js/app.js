@@ -19,6 +19,27 @@ const App = {
 
             const urlParams = new URLSearchParams(window.location.search);
 
+            // If a previous linking flow stored a session secret, apply it before initializing
+            try {
+                const linkedSessionSecret = localStorage.getItem('LINKED_SESSION_SECRET');
+                if (linkedSessionSecret) {
+                    console.info('Found linked session secret, applying...');
+                    let applied = false;
+                    for (let i = 0; i < 5 && !applied; i++) {
+                        try {
+                            await client.setJWT(linkedSessionSecret);
+                            applied = true;
+                            console.info('Applied linked session secret');
+                        } catch (e) {
+                            console.warn('Failed to apply session secret, retrying...', e);
+                            await new Promise(r => setTimeout(r, 200));
+                        }
+                    }
+                }
+            } catch (e) {
+                console.debug('Error applying linked session secret', e);
+            }
+
             // If a previous flow stored a fallback JWT (due to SDK race), try to apply it now.
             try {
                 const fallbackJwt = localStorage.getItem('APPWRITE_JWT_FALLBACK');
@@ -167,6 +188,13 @@ const App = {
                                 // Store the linked UID for the app to recognize on reload
                                 localStorage.setItem('LINKED_APPWRITE_UID', parsed.appwrite_uid);
                                 localStorage.setItem('LINKED_MEMBER_ID', parsed.memberId);
+                                
+                                // If we got a session secret, store it so the app can set it on reload
+                                if (jwt && typeof jwt === 'object' && jwt.sessionSecret) {
+                                    console.info('Storing session secret for next session');
+                                    localStorage.setItem('LINKED_SESSION_SECRET', jwt.sessionSecret);
+                                }
+                                
                                 alert('✓ Device successfully linked to member! Click OK to reload.');
                                 await new Promise(r => setTimeout(r, 200));
                                 window.location.href = window.location.pathname;
