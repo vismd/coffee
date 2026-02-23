@@ -224,7 +224,24 @@ module.exports = async function (req, res) {
         let jwtResp = null;
         if (memberAppwriteUid) {
           try {
-            jwtResp = await users.createJWT(memberAppwriteUid);
+            if (typeof users.createJWT === 'function') {
+              jwtResp = await users.createJWT(memberAppwriteUid);
+            } else {
+              // REST fallback to create JWT
+              const endpoint = (process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
+              const url = `${endpoint}/users/${memberAppwriteUid}/jwt`;
+              const resp = await fetch(url, {
+                method: 'POST',
+                headers: {
+                  'X-Appwrite-Project': process.env.APPWRITE_PROJECT,
+                  'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
+                  'Content-Type': 'application/json'
+                }
+              });
+              const data = await resp.json();
+              if (!resp.ok) throw new Error(`jwt fetch failed: ${resp.status} ${JSON.stringify(data)}`);
+              jwtResp = data;
+            }
             console.log('CREATED_JWT_FOR', memberAppwriteUid);
           } catch (jwtErr) {
             console.error('Failed to create JWT for', memberAppwriteUid, jwtErr);
@@ -248,7 +265,23 @@ module.exports = async function (req, res) {
     }
     if (memberAppwriteUid) {
       try {
-        jwtResp = await users.createJWT(memberAppwriteUid);
+        if (typeof users.createJWT === 'function') {
+          jwtResp = await users.createJWT(memberAppwriteUid);
+        } else {
+          const endpoint = (process.env.APPWRITE_ENDPOINT || '').replace(/\/$/, '');
+          const url = `${endpoint}/users/${memberAppwriteUid}/jwt`;
+          const resp = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'X-Appwrite-Project': process.env.APPWRITE_PROJECT,
+              'X-Appwrite-Key': process.env.APPWRITE_API_KEY,
+              'Content-Type': 'application/json'
+            }
+          });
+          const data = await resp.json();
+          if (!resp.ok) throw new Error(`jwt fetch failed: ${resp.status} ${JSON.stringify(data)}`);
+          jwtResp = data;
+        }
         console.log('CREATED_JWT_FOR', memberAppwriteUid);
       } catch (jwtErr) {
         console.error('Failed to create JWT for', memberAppwriteUid, jwtErr);
