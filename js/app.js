@@ -159,14 +159,20 @@ const App = {
                             };
 
                             const jwt = findJwt(parsed);
-                            console.info('Claim exchange response:', { parsed, extractedJwt: jwt ? '***' : null });
+                            console.info('Claim exchange response:', { parsed, extractedJwt: jwt ? (typeof jwt === 'string' ? '***' : { sessionId: '***', sessionSecret: '***' }) : null });
                             if (jwt) {
                                 console.info('Attempting to set JWT for device linking...');
                                 try {
-                                    await client.setJWT(jwt);
-                                    console.info('JWT applied successfully');
-                                    // Show dialog so user can read console logs before reload
-                                    alert('✓ Device successfully linked! You can now check the console logs. Click OK to reload.');
+                                    // Handle both JWT strings and session objects
+                                    if (typeof jwt === 'string') {
+                                        await client.setJWT(jwt);
+                                    } else if (jwt.sessionId && jwt.sessionSecret) {
+                                        // Session-based auth: store session credentials
+                                        await client.setSession(jwt.sessionSecret, jwt.sessionId);
+                                    }
+                                    console.info('Session/JWT applied successfully, reloading...');
+                                    await new Promise(r => setTimeout(r, 150));
+                                    alert('✓ Device successfully linked! Check console logs. Click OK to reload.');
                                     window.location.href = window.location.pathname;
                                     return;
                                 } catch (setErr) {
