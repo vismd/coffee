@@ -164,21 +164,36 @@ const App = {
                                 console.info('Attempting to set session for device linking...');
                                 try {
                                     // Handle both JWT strings and session objects
-                                    let tokenToSet = jwt;
-                                    if (typeof jwt === 'object' && jwt.sessionSecret) {
-                                        // Session response: use the secret as the JWT
-                                        tokenToSet = jwt.sessionSecret;
-                                        console.info('Using session secret as JWT token');
+                                    if (typeof jwt === 'object' && jwt.sessionId && jwt.sessionSecret) {
+                                        // Session response: manually set the session in localStorage and SDK
+                                        console.info('Setting session credentials in localStorage');
+                                        // Store session for SDK to pick up
+                                        localStorage.setItem(`appwrite_session_${client.config.project}`, JSON.stringify({
+                                            id: jwt.sessionId,
+                                            secret: jwt.sessionSecret
+                                        }));
+                                        // Also initialize the client with the secret as JWT fallback
+                                        await client.setJWT(jwt.sessionSecret);
+                                    } else {
+                                        await client.setJWT(jwt);
                                     }
-                                    await client.setJWT(tokenToSet);
-                                    console.info('Session/JWT applied successfully, reloading...');
+                                    console.info('Session credentials applied successfully, reloading...');
                                     await new Promise(r => setTimeout(r, 150));
                                     alert('✓ Device successfully linked! Check console logs. Click OK to reload.');
                                     window.location.href = window.location.pathname;
                                     return;
                                 } catch (setErr) {
-                                    console.warn('client.setJWT failed, storing fallback JWT and reloading', setErr);
-                                    try { localStorage.setItem('APPWRITE_JWT_FALLBACK', typeof jwt === 'string' ? jwt : jwt.sessionSecret); } catch (e) { console.error('Failed to write fallback JWT', e); }
+                                    console.warn('setJWT failed, attempting localStorage fallback', setErr);
+                                    try { 
+                                        if (typeof jwt === 'object' && jwt.sessionSecret) {
+                                            localStorage.setItem(`appwrite_session_${client.config.project}`, JSON.stringify({
+                                                id: jwt.sessionId,
+                                                secret: jwt.sessionSecret
+                                            }));
+                                        } else {
+                                            localStorage.setItem('APPWRITE_JWT_FALLBACK', jwt);
+                                        }
+                                    } catch (e) { console.error('Failed to write fallback session', e); }
                                     window.location.href = window.location.pathname;
                                     return;
                                 }
