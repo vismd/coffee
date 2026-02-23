@@ -145,19 +145,26 @@ const App = {
                             const findJwt = (obj) => {
                                 if (!obj) return null;
                                 if (typeof obj === 'string') return null;
+                                // Try direct jwt field first
                                 if (obj.jwt && typeof obj.jwt === 'string') return obj.jwt;
                                 if (obj.token && typeof obj.token === 'string') return obj.token;
+                                // Try nested structures
                                 if (obj.data && obj.data.jwt) return obj.data.jwt;
                                 if (obj.body && obj.body.jwt) return obj.body.jwt;
                                 if (obj.response && obj.response.jwt) return obj.response.jwt;
                                 if (obj.result && obj.result.jwt) return obj.result.jwt;
+                                // If parsed looks like our function response body directly, try it
+                                if (obj.linked && obj.jwt) return obj.jwt;
                                 return null;
                             };
 
                             const jwt = findJwt(parsed);
+                            console.info('Claim exchange response:', { parsed, extractedJwt: jwt ? '***' : null });
                             if (jwt) {
+                                console.info('Attempting to set JWT for device linking...');
                                 try {
                                     await client.setJWT(jwt);
+                                    console.info('JWT applied successfully, reloading...');
                                     await new Promise(r => setTimeout(r, 150));
                                     window.location.href = window.location.pathname;
                                     return;
