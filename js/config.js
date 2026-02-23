@@ -1,7 +1,7 @@
 const { Client, Account, Databases, Storage, Functions, ID, Query } = Appwrite;
 
 const client = new Client()
-    .setEndpoint('https://fra.cloud.appwrite.io/v1')
+    .setEndpoint('https://fra.cloud.appwrite.io')
     .setProject('699b182300263577e8a8'); 
 
 const account = new Account(client);
