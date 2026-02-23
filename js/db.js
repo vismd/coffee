@@ -44,10 +44,10 @@ const DB = {
     async getGroupLogs() {
         const result = await databases.listDocuments(DB_ID, COLL_LOGS, [
             //type is EXPENSE or BEANS
-            Appwrite.Query.or(
+            Appwrite.Query.or([
                 Appwrite.Query.equal('type', 'EXPENSE'),
                 Appwrite.Query.equal('type', 'BEANS')
-            ),
+            ]),
             Appwrite.Query.orderDesc('timestamp'),
             Appwrite.Query.limit(10)
         ]);

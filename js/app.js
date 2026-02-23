@@ -191,9 +191,18 @@ const App = {
                 this.renderDashboard();
             } else {
                 document.getElementById('app').innerHTML = `
-                    <div class="card fade-in">
-                        <p>No account linked to this device.</p>
-                        <p><small>ID: ${sessionUser.$id}</small></p>
+                    <div style="max-width: 600px; margin: 60px auto; text-align: center; padding: 20px;">
+                        <div style="font-size: 4rem; margin-bottom: 20px;">🔒</div>
+                        <h1 style="margin: 20px 0; color: var(--text);">Private Coffee Machine</h1>
+                        <div style="background: var(--card); border-left: 4px solid var(--primary); padding: 20px; border-radius: 8px; margin: 30px 0; text-align: left;">
+                            <p style="margin: 10px 0; color: var(--text);">This coffee machine is privately owned and maintained by a group of colleagues. Please do not use this machine unless you are an authorized member of our group.</p>
+                            <p style="margin: 10px 0; color: var(--text); font-weight: 500;">Your device ID: <code style="background: var(--bg); padding: 2px 6px; border-radius: 3px;">${sessionUser.$id}</code></p>
+                        </div>
+                        <div style="background: var(--bg); padding: 20px; border-radius: 8px; margin: 30px 0;">
+                            <p style="margin: 10px 0; color: var(--text); font-size: 0.95rem;">If you would like to request access to use this coffee machine, please contact:</p>
+                            <p style="margin: 15px 0;"><a href="mailto:vismd@proton.me" style="font-size: 1.1rem; color: var(--primary); text-decoration: none; font-weight: 500;">vismd@proton.me</a></p>
+                            <p style="margin: 10px 0; color: var(--secondary); font-size: 0.85rem;">We'd be happy to discuss membership!</p>
+                        </div>
                     </div>`;
             }
         } catch (error) {
