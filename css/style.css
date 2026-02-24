@@ -469,7 +469,7 @@ body.dark-mode .metric-label {
 
 .analytics-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 2rem;
 }
 
@@ -728,8 +728,13 @@ body.dark-mode input[type="radio"]:checked {
 
 /* Responsive Design */
 @media (max-width: 800px) {
+    .analytics-container {
+        padding: 1rem !important;
+    }
+
     .analytics-grid {
         grid-template-columns: 1fr;
+        gap: 1rem;
     }
 
     .analytics-header {
@@ -739,6 +744,23 @@ body.dark-mode input[type="radio"]:checked {
     }
 
     .analytics-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .analytics-header .btn-primary {
+        width: 100%;
+        padding: 1rem;
+    }
+
+    .metrics-panel {
+        grid-template-columns: repeat(2, 1fr) !important;
+    }
+
+    .metric-card {
+        padding: 1rem 0.75rem !important;
+    }
+
+    .metric-value {
         font-size: 1.5rem;
     }
 
@@ -754,5 +776,45 @@ body.dark-mode input[type="radio"]:checked {
     .activity-amount {
         margin-left: 0;
         margin-top: 0.5rem;
+    }
+
+    .chart-container {
+        height: 250px;
+    }
+}
+
+@media (max-width: 400px) {
+    .analytics-container {
+        padding: 0.75rem !important;
+    }
+
+    .analytics-header h1 {
+        font-size: 1.2rem;
+    }
+
+    .metrics-panel {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+    }
+
+    .metric-card {
+        padding: 0.75rem 0.5rem !important;
+    }
+
+    .metric-value {
+        font-size: 1.25rem;
+    }
+
+    .analytics-section {
+        padding: 1rem;
+    }
+
+    .analytics-section h2 {
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+    }
+
+    .chart-container {
+        height: 200px;
     }
 }

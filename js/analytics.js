@@ -174,14 +174,14 @@ const Analytics = {
             new Date(log.timestamp) >= thirtyDaysAgo
         );
 
-        // Group by weekday
-        const weekdayData = [0, 0, 0, 0, 0, 0, 0]; // Sun-Sat
+        // Group by weekday (Monday = 0, Sunday = 6)
+        const weekdayData = [0, 0, 0, 0, 0, 0, 0]; // Mon-Sun
         const weekdayCount = [0, 0, 0, 0, 0, 0, 0];
-        const weekdayLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const weekdayLabels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
         userLogs.forEach(log => {
             const logDate = new Date(log.timestamp);
-            const dayOfWeek = logDate.getDay();
+            const dayOfWeek = (logDate.getDay() + 6) % 7; // Convert Sun=0 to Mon=0
             weekdayData[dayOfWeek]++;
             weekdayCount[dayOfWeek]++;
         });
@@ -379,7 +379,7 @@ const Analytics = {
             const userLogs = logsByUser[userId];
             const scatterData = userLogs.map(log => {
                 const logDate = new Date(log.timestamp);
-                const weekday = logDate.getDay();
+                const weekday = (logDate.getDay() + 6) % 7; // Convert Sun=0 to Mon=0
                 const hour = logDate.getHours() + logDate.getMinutes() / 60;
                 const jitter = (Math.random() - 0.5) * 0.6;
                 
@@ -406,7 +406,7 @@ const Analytics = {
             };
         });
 
-        const weekdayLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const weekdayLabels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
         this.charts.coffeetimes = new Chart(ctx, {
             type: 'scatter',
