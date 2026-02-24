@@ -327,10 +327,58 @@ window.handleCoffee = async () => {
 
         const total = +(price + surchargeAmt);
 
-        if (confirm(`Confirm coffee for ${App.userMember.name}? (€${price.toFixed(2)}${surchargeAmt > 0 ? ' + €' + surchargeAmt.toFixed(2) + ' surcharge = €' + total.toFixed(2) : ''})`)) {
-            await DB.registerCoffeeWithDynamicPrice(App.userMember);
-            location.reload(); 
-        }
+        // Show in-page confirmation modal instead of browser confirm()
+        if (document.getElementById('coffee-confirm-modal')) return;
+        const colors = window.getModalColors();
+        const modalHtml = `
+            <div class="modal-overlay" id="coffee-confirm-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:10000;">
+              <div class="card modal" style="padding:22px; max-width:420px; width:92%; border-radius:12px; background:${colors.bg}; color:${colors.text}; box-sizing:border-box;">
+                <button onclick="document.getElementById('coffee-confirm-modal')?.remove()" style="position:absolute; right:18px; top:18px; background:none; border:none; font-size:18px; cursor:pointer; color:${colors.text}">✕</button>
+                <h3 style="margin-top:0; color:${colors.text}">Confirm Coffee</h3>
+                <p style="color:${colors.secondaryText}; margin:6px 0 14px 0;">${App.userMember.name}</p>
+                <div style="background:${colors.accentBg}; padding:12px; border-radius:8px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="color:${colors.text};">Price</div>
+                    <div style="color:${colors.text};">€${price.toFixed(2)}</div>
+                </div>
+                ${surchargeAmt > 0 ? `
+                <div style="background:${colors.accentBg}; padding:12px; border-radius:8px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="color:#ff3b30; font-weight:600;">Surcharge (${(config.surcharge_percent||0).toFixed(1)}%)</div>
+                    <div style="color:#ff3b30; font-weight:600;">+ €${surchargeAmt.toFixed(2)}</div>
+                </div>
+                ` : ''}
+                <div style="background:${colors.accentBg}; padding:12px; border-radius:8px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; font-weight:700;">
+                    <div style="color:${colors.text};">Total</div>
+                    <div style="color:${colors.text};">€${total.toFixed(2)}</div>
+                </div>
+                <div style="display:flex; gap:10px; justify-content:flex-end;">
+                    <button id="coffee-confirm-cancel" class="btn-cancel">Cancel</button>
+                    <button id="coffee-confirm-confirm" class="btn-primary">Confirm</button>
+                </div>
+              </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        document.getElementById('coffee-confirm-cancel').addEventListener('click', () => {
+            document.getElementById('coffee-confirm-modal')?.remove();
+        });
+
+        document.getElementById('coffee-confirm-confirm').addEventListener('click', async (ev) => {
+            try {
+                const btn = ev.currentTarget;
+                btn.disabled = true;
+                btn.innerText = 'Processing...';
+                await DB.registerCoffeeWithDynamicPrice(App.userMember);
+                // small delay for UX
+                setTimeout(() => location.reload(), 200);
+            } catch (err) {
+                console.error('Coffee purchase failed', err);
+                alert('Transaction failed. Check console for details.');
+                const btn = document.getElementById('coffee-confirm-confirm');
+                if (btn) { btn.disabled = false; btn.innerText = 'Confirm'; }
+            }
+        });
     } catch (e) {
         alert("Transaction failed. Check Appwrite permissions.");
     }
