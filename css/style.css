@@ -188,7 +188,7 @@ th, td { text-align: left; padding: 0.8rem; border-bottom: 1px solid var(--borde
     font-size: 0.9rem;
 }
 
-.log-date { color: #8e8e93; font-size: 0.75rem; min-width: 80px; }
+.log-date { color: #8e8e93; font-size: 0.75rem; min-width: 50px; }
 .log-desc { flex-grow: 1; margin: 0 10px; }
 
 /* Monetary colors */

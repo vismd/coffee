@@ -225,7 +225,7 @@ const DB = {
             });
 
             // 3. Log as BEANS so it shows in group logs
-            const logMessage = `🫘 Coffee Beans: ${grams}g @ €${(pricePerGram * 1000).toFixed(2)}/kg (€${pricePerCup.toFixed(2)}/cup)`;
+            const logMessage = `Coffee Beans: ${grams}g (€${pricePerCup.toFixed(2)}/cup)`;
             return await this.logAction('BEANS', -amount, 'ADMIN', 'System', logMessage, fileId);
         } catch (error) {
             console.error("Error recording bean purchase:", error);
