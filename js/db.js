@@ -1,4 +1,72 @@
 const DB = {
+    // Compress image for better performance while maintaining readability
+    async compressImage(file) {
+        return new Promise((resolve, reject) => {
+            // Only compress image files
+            if (!file.type.startsWith('image/')) {
+                resolve(file);
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    
+                    // Max dimensions for readability
+                    const maxWidth = 1200;
+                    const maxHeight = 1200;
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    // Scale down if needed
+                    if (width > height) {
+                        if (width > maxWidth) {
+                            height *= maxWidth / width;
+                            width = maxWidth;
+                        }
+                    } else {
+                        if (height > maxHeight) {
+                            width *= maxHeight / height;
+                            height = maxHeight;
+                        }
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Convert to blob with compression
+                    canvas.toBlob(
+                        (blob) => {
+                            // Create a new File object from the blob
+                            const compressedFile = new File([blob], file.name, {
+                                type: 'image/jpeg',
+                                lastModified: Date.now()
+                            });
+                            resolve(compressedFile);
+                        },
+                        'image/jpeg',
+                        0.75 // Quality 75% - good balance between size and readability
+                    );
+                };
+                img.onerror = () => {
+                    // If image fails to load, use original file
+                    resolve(file);
+                };
+                img.src = event.target.result;
+            };
+            reader.onerror = () => {
+                // If file read fails, use original file
+                resolve(file);
+            };
+            reader.readAsDataURL(file);
+        });
+    },
+
     // 1. Fetch member by their Appwrite UID (Missing function fix)
     async getMemberByUid(uid) {
         try {
@@ -66,13 +134,16 @@ const DB = {
     async recordExpense(amount, message, file, distributionMethod = 'collective') {
         let fileId = null;
 
-        // 1. If the admin selected a photo, upload it first
+        // 1. If the admin selected a photo, compress and upload it
         if (file) {
             try {
+                // Compress the image before uploading
+                const compressedFile = await this.compressImage(file);
+                
                 const uploadedFile = await storage.createFile(
                     BUCKET_ID,          // Must match the ID in Appwrite Storage
                     Appwrite.ID.unique(), 
-                    file
+                    compressedFile
                 );
                 fileId = uploadedFile.$id;
             } catch (storageError) {
@@ -197,13 +268,16 @@ const DB = {
         try {
             let fileId = null;
             
-            // 1. Upload receipt file if provided
+            // 1. Upload receipt file if provided - compress image first
             if (file) {
                 try {
+                    // Compress the image before uploading
+                    const compressedFile = await this.compressImage(file);
+                    
                     const uploadedFile = await storage.createFile(
                         BUCKET_ID,
                         Appwrite.ID.unique(),
-                        file
+                        compressedFile
                     );
                     fileId = uploadedFile.$id;
                 } catch (storageError) {
