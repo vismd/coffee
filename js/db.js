@@ -121,6 +121,8 @@ const DB = {
                 grams_per_cup: config.grams_per_cup || 18, // Default 18g per cup
                 coffee_price_per_cup: config.coffee_price_per_cup || 0.50,
                 coffee_price_per_gram: config.coffee_price_per_gram || 0.0278 // Default based on 0.50/18g
+                ,
+                surcharge_percent: config.surcharge_percent || 10 // default 10%
             };
         } catch (error) {
             console.error("Error fetching global config:", error);
@@ -129,7 +131,21 @@ const DB = {
                 grams_per_cup: 18,
                 coffee_price_per_cup: 0.50,
                 coffee_price_per_gram: 0.0278
+                ,
+                surcharge_percent: 10
             };
+        }
+    },
+
+    async updateSurchargePercent(percent) {
+        try {
+            await databases.updateDocument(DB_ID, COLL_GLOBAL, 'main', {
+                surcharge_percent: parseFloat(percent)
+            });
+            return true;
+        } catch (error) {
+            console.error('Error updating surcharge percent:', error);
+            throw error;
         }
     },
 
@@ -196,16 +212,43 @@ const DB = {
         try {
             const config = await this.getGlobalConfig();
             const price = config.coffee_price_per_cup;
-            
-            const newBalance = memberDoc.balance - price;
-            const newTotal = memberDoc.total_coffees + 1;
-            
-            await databases.updateDocument(DB_ID, COLL_MEMBERS, memberDoc.$id, {
+
+            // Determine surcharge (applies when user balance is <= 0)
+            let surchargeAmt = 0;
+            if ((memberDoc.balance || 0) <= 0) {
+                surchargeAmt = +(price * (config.surcharge_percent || 0) / 100);
+                // Round to cents
+                surchargeAmt = Math.round(surchargeAmt * 100) / 100;
+            }
+
+            const totalPrice = +(price + surchargeAmt);
+
+            const newBalance = (memberDoc.balance || 0) - totalPrice;
+            const newTotal = (memberDoc.total_coffees || 0) + 1;
+
+            // Update member: balance, coffees, and accumulated surcharge total
+            const updatedFields = {
                 balance: newBalance,
                 total_coffees: newTotal
-            });
-            
-            return await this.logAction('COFFEE', -price, memberDoc.$id, memberDoc.name);
+            };
+
+            // Keep track of surcharge money collected per user. The user will add this column to the members table.
+            const prevSurcharge = parseFloat(memberDoc.surcharge_total || 0);
+            if (surchargeAmt > 0) {
+                updatedFields.surcharge_total = +(prevSurcharge + surchargeAmt);
+            }
+
+            await databases.updateDocument(DB_ID, COLL_MEMBERS, memberDoc.$id, updatedFields);
+
+            // Log the coffee purchase (total amount charged)
+            await this.logAction('COFFEE', -totalPrice, memberDoc.$id, memberDoc.name);
+
+            // If there was a surcharge, log it separately for clarity
+            if (surchargeAmt > 0) {
+                await this.logAction('SURCHARGE', +surchargeAmt, memberDoc.$id, memberDoc.name, `Surcharge ${config.surcharge_percent}% on €${price.toFixed(2)}`);
+            }
+
+            return true;
         } catch (error) {
             console.error("Error registering coffee:", error);
             throw error;

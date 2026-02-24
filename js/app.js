@@ -256,8 +256,8 @@ const App = {
         // Get dynamic coffee price
         const config = await DB.getGlobalConfig();
         
-        // Render personal UI with dynamic price
-        app.innerHTML = UI.renderUserStats(this.userMember, config.coffee_price_per_cup);
+        // Render personal UI with dynamic price and surcharge percent
+        app.innerHTML = UI.renderUserStats(this.userMember, config.coffee_price_per_cup, config.surcharge_percent);
 
         // Show a compact collective pot and recent group activity on main page
         try {
@@ -318,8 +318,16 @@ window.handleCoffee = async () => {
     try {
         const config = await DB.getGlobalConfig();
         const price = config.coffee_price_per_cup;
-        
-        if (confirm(`Confirm coffee for ${App.userMember.name}? (€${price.toFixed(2)})`)) {
+
+        // If user has non-positive balance, calculate surcharge to show total
+        let surchargeAmt = 0;
+        if ((App.userMember.balance || 0) <= 0) {
+            surchargeAmt = Math.round((price * (config.surcharge_percent || 0) / 100) * 100) / 100;
+        }
+
+        const total = +(price + surchargeAmt);
+
+        if (confirm(`Confirm coffee for ${App.userMember.name}? (€${price.toFixed(2)}${surchargeAmt > 0 ? ' + €' + surchargeAmt.toFixed(2) + ' surcharge = €' + total.toFixed(2) : ''})`)) {
             await DB.registerCoffeeWithDynamicPrice(App.userMember);
             location.reload(); 
         }
@@ -709,5 +717,73 @@ window.showAdminView = async () => {
     } catch (e) {
         console.error('Failed to open admin view', e);
         alert('Could not open admin panel. See console for details.');
+    }
+};
+
+window.showTopupInfoModal = () => {
+    if (document.getElementById('topup-modal')) return;
+    const colors = window.getModalColors();
+    const modalHtml = `
+        <div class="modal-overlay" id="topup-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;">
+            <div class="card modal" style="background:${colors.bg}; color:${colors.text}; padding:24px; border-radius:16px; max-width:480px; width:92%;">
+                <button onclick="document.getElementById('topup-modal').remove()" style="position:absolute; right:18px; top:18px; background:none; border:none; font-size:18px; cursor:pointer; color:${colors.text}">✕</button>
+                <h3 style="margin-top:0; color:${colors.text}">How to top up</h3>
+                <p style="color:${colors.secondaryText};">You can top up your balance by asking an admin to add funds, or transfer to the group's account and ask an admin to record it. Alternatively, use the admin 'Add funds' button next to your name.</p>
+                <p style="color:${colors.secondaryText};"><b>Quick steps:</b></p>
+                <ol style="color:${colors.secondaryText};">
+                    <li>Contact an admin and send them the amount.</li>
+                    <li>Admin: click the '+' beside the member in the Admin Panel to add funds.</li>
+                </ol>
+                <div style="display:flex; gap:10px; margin-top:12px; justify-content:flex-end;">
+                    <button onclick="document.getElementById('topup-modal').remove()" class="btn-primary">Close</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
+
+window.showSurchargeConfigModal = async () => {
+    if (document.getElementById('surcharge-modal')) return;
+    const colors = window.getModalColors();
+    const config = await DB.getGlobalConfig();
+    const modalHtml = `
+        <div class="modal-overlay" id="surcharge-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;">
+            <div class="card modal" style="background:${colors.bg}; color:${colors.text}; padding:24px; border-radius:16px; max-width:420px; width:92%;">
+                <button onclick="document.getElementById('surcharge-modal').remove()" style="position:absolute; right:18px; top:18px; background:none; border:none; font-size:18px; cursor:pointer; color:${colors.text}">✕</button>
+                <h3 style="margin-top:0; color:${colors.text}">Configure Surcharge</h3>
+                <p style="color:${colors.secondaryText};"><small>Set the surcharge percentage applied when a user has a non-positive balance.</small></p>
+                <label style="display:block; font-weight:600; margin:8px 0 6px 0; color:${colors.text};">Surcharge percent (%):</label>
+                <input type="number" id="surcharge-input" value="${config.surcharge_percent || 10}" step="0.1" min="0" style="width:100%; padding:10px; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box;">
+                <div style="display:flex; gap:10px; margin-top:14px; justify-content:flex-end;">
+                    <button onclick="window.submitSurchargeConfig()" class="btn-primary">Save</button>
+                    <button onclick="document.getElementById('surcharge-modal').remove()" class="btn-cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
+
+window.submitSurchargeConfig = async () => {
+    const input = document.getElementById('surcharge-input');
+    const val = parseFloat(input.value);
+    if (isNaN(val) || val < 0) {
+        alert('Please enter a valid surcharge percent (>= 0).');
+        return;
+    }
+    try {
+        const saveBtn = document.querySelector('#surcharge-modal .btn-primary');
+        saveBtn.innerText = 'Saving...';
+        saveBtn.disabled = true;
+        await DB.updateSurchargePercent(val);
+        alert('Surcharge percent updated.');
+        location.reload();
+    } catch (e) {
+        console.error(e);
+        alert('Error saving surcharge percent. Check console for details.');
+        const saveBtn = document.querySelector('#surcharge-modal .btn-primary');
+        saveBtn.innerText = 'Save';
+        saveBtn.disabled = false;
     }
 };

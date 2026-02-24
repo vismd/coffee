@@ -1,5 +1,5 @@
 const UI = {
-    renderUserStats(member, coffeePrice = 0.50) {
+    renderUserStats(member, coffeePrice = 0.50, surchargePercent = 10) {
         return `
             <div class="card welcome-card">
                     <div class="welcome-header">
@@ -19,7 +19,16 @@ const UI = {
                     <div class="stat"><span>Balance</span> <b>€${member.balance.toFixed(2)}</b></div>
                     <div class="stat"><span>Coffees</span> <b>${member.total_coffees}</b></div>
                 </div>
-                <button onclick="window.handleCoffee()" class="btn-primary">☕ Get Coffee (€${coffeePrice.toFixed(2)})</button>
+                ${member.balance < 5 ? `
+                    <div class="low-balance-notice" style="background:#fff3cd;border-left:4px solid #ffdd57;padding:10px;border-radius:6px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;"> 
+                        <div style="color:#856404;">Your balance is low (€${member.balance.toFixed(2)}). Please top up.</div>
+                        <div style="display:flex;gap:8px;">
+                            <button class="btn-primary" onclick="window.showTopupInfoModal()">How to top up</button>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <button onclick="window.handleCoffee()" class="btn-primary">☕ Get Coffee (€${coffeePrice.toFixed(2)}${(member.balance <= 0) ? ` <span style=\"color:#ff3b30; margin-left:6px; font-weight:600;\">+ €${(Math.round((coffeePrice * (surchargePercent||0) / 100) * 100)/100).toFixed(2)}</span>` : ''}</button>
             </div>
         `;
     },
@@ -55,10 +64,11 @@ const UI = {
                                     <h2>€${(groupFunds || 0).toFixed(2)}</h2>
                                 </div>
                                 <div style="margin-top:12px; display:flex; gap:10px; flex-wrap: wrap;">
-                                    <button class="btn-primary" onclick="window.showExpenseModal()">Record Group Purchase</button>
-                                    <button class="btn-primary" onclick="window.showCoffeeBeanModal()" style="background: #6c5ce7;">🫘 Buy Coffee Beans</button>
-                                    <button class="btn-primary" onclick="window.showGramsConfigModal()" style="background: #00b894;">⚙️ Config Cup Weight</button>
-                                </div>
+                                                    <button class="btn-primary" onclick="window.showExpenseModal()">Record Group Purchase</button>
+                                                    <button class="btn-primary" onclick="window.showCoffeeBeanModal()" style="background: #6c5ce7;">🫘 Buy Coffee Beans</button>
+                                                    <button class="btn-primary" onclick="window.showGramsConfigModal()" style="background: #00b894;">⚙️ Config Cup Weight</button>
+                                                    <button class="btn-primary" onclick="window.showSurchargeConfigModal()" style="background:#ff7675">⚖️ Configure Surcharge</button>
+                                                </div>
                                 <div class="member-list">
                                         ${rows}
                                 </div>
