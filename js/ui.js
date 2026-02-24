@@ -28,7 +28,7 @@ const UI = {
                     </div>
                 ` : ''}
 
-                <button onclick="window.handleCoffee()" class="btn-primary">☕ Get Coffee (€${coffeePrice.toFixed(2)}${(member.balance <= 0) ? ` <span style=\"color:#ff3b30; margin-left:6px; font-weight:600;\">+ €${(Math.round((coffeePrice * (surchargePercent||0) / 100) * 100)/100).toFixed(2)})</span>` : ''}</button>
+                <button onclick="window.handleCoffee()" class="btn-primary">☕ Get Coffee (€${coffeePrice.toFixed(2)}${(member.balance <= 0) ? `<span style=\"color:#ff3b30; margin-left:6px; font-weight:600;\">+ €${(Math.round((coffeePrice * (surchargePercent||0) / 100) * 100)/100).toFixed(2)})</span>` : ''}</button>
             </div>
         `;
     },
