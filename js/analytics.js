@@ -361,30 +361,41 @@ const Analytics = {
         const ctx = document.getElementById('spendingChart');
         if (!ctx) return;
 
-        // Calculate balance trends for all members
-        const memberSpending = {};
-        this.allMembers.forEach(member => {
-            memberSpending[member.name] = Math.abs(member.balance);
+        // Get user's coffee logs
+        const userCoffeeLogs = this.allLogs.filter(log => 
+            log.userId === this.userMember.$id && 
+            log.type === 'COFFEE'
+        );
+
+        // Parse logs into scatter data: {x: weekday, y: hour}
+        const scatterData = userCoffeeLogs.map(log => {
+            const logDate = new Date(log.timestamp);
+            const weekday = logDate.getDay(); // 0-6 (Sun-Sat)
+            const hour = logDate.getHours() + logDate.getMinutes() / 60; // 0-24
+            
+            // Add jitter to x (weekday) to spread overlapping points
+            const jitter = (Math.random() - 0.5) * 0.6; // Random between -0.3 and 0.3
+            
+            return {
+                x: weekday + jitter,
+                y: hour
+            };
         });
 
-        const sortedMembers = Object.entries(memberSpending)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 8);
-
-        const labels = sortedMembers.map(m => m[0]);
-        const data = sortedMembers.map(m => m[1]);
+        const weekdayLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const colors = this.getChartColors();
 
         this.charts.spending = new Chart(ctx, {
-            type: 'doughnut',
+            type: 'scatter',
             data: {
-                labels: labels,
                 datasets: [{
-                    label: 'Outstanding Balance (€)',
-                    data: data,
-                    backgroundColor: colors.backgroundColor.slice(0, labels.length),
-                    borderColor: document.body.classList.contains('dark-mode') ? '#2d2d2d' : '#ffffff',
-                    borderWidth: 2
+                    label: 'Your Coffee Times',
+                    data: scatterData,
+                    backgroundColor: 'rgba(73, 126, 167, 0.6)',
+                    borderColor: 'rgba(73, 126, 167, 1)',
+                    borderWidth: 2,
+                    pointRadius: 5,
+                    pointHoverRadius: 7
                 }]
             },
             options: {
@@ -393,6 +404,47 @@ const Analytics = {
                 plugins: {
                     legend: {
                         labels: { color: colors.textColor }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'linear',
+                        min: -0.5,
+                        max: 6.5,
+                        ticks: {
+                            callback: function(value) {
+                                return weekdayLabels[Math.round(value)];
+                            },
+                            stepSize: 1,
+                            color: colors.textColor
+                        },
+                        grid: {
+                            color: colors.gridColor
+                        },
+                        title: {
+                            display: true,
+                            text: 'Day of Week',
+                            color: colors.textColor
+                        }
+                    },
+                    y: {
+                        min: 0,
+                        max: 24,
+                        ticks: {
+                            callback: function(value) {
+                                return value + ':00';
+                            },
+                            stepSize: 2,
+                            color: colors.textColor
+                        },
+                        grid: {
+                            color: colors.gridColor
+                        },
+                        title: {
+                            display: true,
+                            text: 'Time of Day',
+                            color: colors.textColor
+                        }
                     }
                 }
             }
