@@ -89,12 +89,25 @@ UI.renderLogs = (logs) => {
         const hasImage = log.fileId; // Check if this log has an associated image
         const imageBtn = hasImage ? `<button class="btn-view-image" onclick="window.viewExpenseImage('${log.fileId}')">Receipt</button>` : '';
         
+        // Get icon based on log type
+        const typeIcons = {
+            'COFFEE': '☕',
+            'EXPENSE': '💰',
+            'TOPUP': '💵',
+            'BEANS': '🫘',
+            'SURCHARGE': '⚠️'
+        };
+        const icon = typeIcons[log.type] || '⚙️';
+        
+        // Use message if available, otherwise use type
+        const description = log.message || log.type;
+        
         return `
         <div class="log-item">
             <span class="log-date">${new Date(log.timestamp).toLocaleDateString()}</span>
-            <span class="log-desc"><b>${log.userName}</b>: ${log.type}</span>
+            <span class="log-desc"><span style="font-size: 1.1rem; margin-right: 6px;">${icon}</span>${description}</span>
             ${imageBtn}
-            <span class="log-amt ${log.amount < 0 ? 'neg' : 'pos'}">${log.amount > 0 ? '+' : ''}${log.amount.toFixed(2)}</span>
+            <span class="log-amt ${log.amount < 0 ? 'neg' : 'pos'}">${log.amount > 0 ? '+' : ''}€${log.amount.toFixed(2)}</span>
         </div>
     `;
     }).join('');
