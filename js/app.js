@@ -728,12 +728,10 @@ window.showTopupInfoModal = () => {
             <div class="card modal" style="background:${colors.bg}; color:${colors.text}; padding:24px; border-radius:16px; max-width:480px; width:92%;">
                 <button onclick="document.getElementById('topup-modal').remove()" style="position:absolute; right:18px; top:18px; background:none; border:none; font-size:18px; cursor:pointer; color:${colors.text}">✕</button>
                 <h3 style="margin-top:0; color:${colors.text}">How to top up</h3>
-                <p style="color:${colors.secondaryText};">You can top up your balance by asking an admin to add funds, or transfer to the group's account and ask an admin to record it. Alternatively, use the admin 'Add funds' button next to your name.</p>
-                <p style="color:${colors.secondaryText};"><b>Quick steps:</b></p>
-                <ol style="color:${colors.secondaryText};">
-                    <li>Contact an admin and send them the amount.</li>
-                    <li>Admin: click the '+' beside the member in the Admin Panel to add funds.</li>
-                </ol>
+                <p style="color:${colors.secondaryText};">You can top up your balance by sending money to this paypal pool. We use this pool to buy new coffee beans and supplies.</p>
+                <p style="color:${colors.text}; font-weight:600; margin:12px 0 6px 0;">PayPal Pool Link:</p>
+                <input type="text" id="topup-link-input" value="https://paypal.com/pools/c/8QyD1vX9g7" readonly style="width:100%; padding:10px; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box;">
+                <button onclick="window.open('https://www.paypal.com/pool/9mVAycjQpz?sr=wccr', '_blank')" class="btn-primary" style="margin-top:10px;">Open PayPal Pool</button>
                 <div style="display:flex; gap:10px; margin-top:12px; justify-content:flex-end;">
                     <button onclick="document.getElementById('topup-modal').remove()" class="btn-primary">Close</button>
                 </div>

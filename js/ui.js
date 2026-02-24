@@ -20,15 +20,15 @@ const UI = {
                     <div class="stat"><span>Coffees</span> <b>${member.total_coffees}</b></div>
                 </div>
                 ${member.balance < 5 ? `
-                    <div class="low-balance-notice" style="background:#fff3cd;border-left:4px solid #ffdd57;padding:10px;border-radius:6px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;"> 
-                        <div style="color:#856404;">Your balance is low (€${member.balance.toFixed(2)}). Please top up.</div>
+                    <div class="low-balance-notice" style="background:#FF8775;border-left:4px solid #FF2F0F;padding:10px;border-radius:6px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;"> 
+                        <div style="color:#856404;">There will be a surcharge of€ ${(Math.round((coffeePrice * (surchargePercent||0) / 100) * 100)/100).toFixed(2)} per coffee because your balance is low. Please top up.</div>
                         <div style="display:flex;gap:8px;">
                             <button class="btn-primary" onclick="window.showTopupInfoModal()">How to top up</button>
                         </div>
                     </div>
                 ` : ''}
 
-                <button onclick="window.handleCoffee()" class="btn-primary">☕ Get Coffee (€${coffeePrice.toFixed(2)}${(member.balance <= 0) ? ` <span style=\"color:#ff3b30; margin-left:6px; font-weight:600;\">+ €${(Math.round((coffeePrice * (surchargePercent||0) / 100) * 100)/100).toFixed(2)}</span>` : ''}</button>
+                <button onclick="window.handleCoffee()" class="btn-primary">☕ Get Coffee (€${coffeePrice.toFixed(2)}${(member.balance <= 0) ? ` <span style=\"color:#ff3b30; margin-left:6px; font-weight:600;\">+ €${(Math.round((coffeePrice * (surchargePercent||0) / 100) * 100)/100).toFixed(2)})</span>` : ''}</button>
             </div>
         `;
     },
