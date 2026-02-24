@@ -557,17 +557,14 @@ window.showExpenseModal = () => {
                     <label style="display:flex; align-items:center; gap:8px; cursor:pointer; color:${colors.text};">
                         <input type="radio" name="exp-distribution" value="collective" checked>
                         <span>Collective Pot Only</span>
-                        <span style="font-size:0.75rem; color:${colors.secondaryText};">(Deduct from group funds)</span>
                     </label>
                     <label style="display:flex; align-items:center; gap:8px; cursor:pointer; color:${colors.text};">
                         <input type="radio" name="exp-distribution" value="coowners">
                         <span>Split Among Co-Owners</span>
-                        <span style="font-size:0.75rem; color:${colors.secondaryText};">(Each co-owner shares cost)</span>
                     </label>
                     <label style="display:flex; align-items:center; gap:8px; cursor:pointer; color:${colors.text};">
                         <input type="radio" name="exp-distribution" value="all">
                         <span>Split Among All Members</span>
-                        <span style="font-size:0.75rem; color:${colors.secondaryText};">(Everyone shares cost)</span>
                     </label>
                 </div>
                 

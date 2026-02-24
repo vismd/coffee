@@ -724,9 +724,10 @@ input[type="radio"]:checked {
 input[type="radio"]:checked::after {
     content: '✓';
     color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     font-size: 12px;
     font-weight: bold;
 }
