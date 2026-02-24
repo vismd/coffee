@@ -649,6 +649,25 @@ body.dark-mode .activity-amount {
     color: #ff3b30;
 }
 
+.coowner-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #ffd700, #ffed4e);
+    color: #333;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 6px;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
+}
+
+body.dark-mode .coowner-badge {
+    background: linear-gradient(135deg, #d4a500, #e8c200);
+    color: #1a1a1a;
+    box-shadow: 0 2px 4px rgba(212, 165, 0, 0.4);
+}
+
 /* Responsive Design */
 @media (max-width: 800px) {
     .analytics-grid {

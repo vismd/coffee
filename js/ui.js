@@ -1,9 +1,10 @@
 const UI = {
     renderUserStats(member, coffeePrice = 0.50, surchargePercent = 10) {
+        const coownerBadge = member.is_coowner ? '<span class="coowner-badge">CO-OWNER</span>' : '';
         return `
             <div class="card welcome-card">
                     <div class="welcome-header">
-                    <h2>Welcome, ${member.name}</h2>
+                    <h2>Welcome, ${member.name}${coownerBadge}</h2>
                     <button class="btn-qr" onclick="window.showClaimQR('${member.$id}')" title="Share identification code">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
                             <rect x="3" y="3" width="6" height="6" />
@@ -21,7 +22,7 @@ const UI = {
                 </div>
                 ${member.balance < 5 ? `
                     <div class="low-balance-notice" style="background:#FF8775;border-left:4px solid #FF2F0F;padding:10px;border-radius:6px;margin-bottom:10px;display:flex;flex-direction:column;align-items:stretch;gap:8px;"> 
-                        <div style="color:#fff; width:100%;">There will be a surcharge of <b>€${(Math.round((coffeePrice * (surchargePercent||0) / 100) * 100)/100).toFixed(2)}</b> per coffee because your balance is low.<br><b>Please top up your account.</b></div>
+                        <div style="color:#fff; width:100%; text-align:center;">There will be a surcharge of <b>€${(Math.round((coffeePrice * (surchargePercent||0) / 100) * 100)/100).toFixed(2)}</b> per coffee when your balance goes negative.<br><b>Please top up your account.</b></div>
                         <div style="display:flex;gap:8px; width:100%; justify-content:flex-end;">
                             <button class="btn-primary" onclick="window.showTopupInfoModal()" style="white-space:nowrap;">How to top up</button>
                         </div>
@@ -34,9 +35,11 @@ const UI = {
     },
 
     renderAdminPanel(members, groupFunds) {
-        const rows = members.map(m => `
+        const rows = members.map(m => {
+            const coownerBadge = m.is_coowner ? '<span class="coowner-badge">CO-OWNER</span>' : '';
+            return `
             <div class="member-row">
-                <span class="member-name">${m.name}</span>
+                <span class="member-name">${m.name}${coownerBadge}</span>
                 <span class="member-balance ${m.balance < 0 ? 'neg' : 'pos'}">
                     €${m.balance.toFixed(2)}
                 </span>
@@ -54,7 +57,8 @@ const UI = {
                   <button class="btn-topup" onclick="window.showAddFunds('${m.$id}')">+</button>
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
 
                 // THIS IS THE MISSING PIECE:
                 return `

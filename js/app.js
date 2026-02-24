@@ -543,7 +543,7 @@ window.showExpenseModal = () => {
     const colors = window.getModalColors();
     const modalHtml = `
         <div class="modal-overlay" id="expense-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;">
-            <div class="card modal" style="background:${colors.bg}; color:${colors.text}; padding:30px; border-radius:24px; max-width:400px; width:90%;">
+            <div class="card modal" style="background:${colors.bg}; color:${colors.text}; padding:30px; border-radius:24px; max-width:450px; width:90%; max-height:80vh; overflow-y:auto;">
                 <h3 style="margin-top:0; color:${colors.text}">Group Purchase</h3>
                 <p style="color:${colors.secondaryText}"><small>Cost for beans, milk, or snacks.</small></p>
                 
@@ -551,6 +551,25 @@ window.showExpenseModal = () => {
                 <input type="text" id="exp-msg" placeholder="Item (e.g. 1kg Espresso)" style="width:100%; padding:12px; margin:10px 0; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box;">
                 <label style="display:block; margin-top:10px; font-size:0.8rem; color:${colors.secondaryText};">Optional: Receipt Photo</label>
                 <input type="file" id="exp-file" accept="image/*" style="width:100%; margin-bottom:20px; color:${colors.inputText};">
+                
+                <label style="display:block; margin-top:15px; font-weight:600; color:${colors.text}; margin-bottom:10px;">How to split this expense?</label>
+                <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; color:${colors.text};">
+                        <input type="radio" name="exp-distribution" value="collective" checked>
+                        <span>Collective Pot Only</span>
+                        <span style="font-size:0.75rem; color:${colors.secondaryText};">(Deduct from group funds)</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; color:${colors.text};">
+                        <input type="radio" name="exp-distribution" value="coowners">
+                        <span>Split Among Co-Owners</span>
+                        <span style="font-size:0.75rem; color:${colors.secondaryText};">(Each co-owner shares cost)</span>
+                    </label>
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; color:${colors.text};">
+                        <input type="radio" name="exp-distribution" value="all">
+                        <span>Split Among All Members</span>
+                        <span style="font-size:0.75rem; color:${colors.secondaryText};">(Everyone shares cost)</span>
+                    </label>
+                </div>
                 
                 <div style="display:flex; gap:10px;">
                     <button onclick="window.submitExpense()" class="btn-primary" style="flex:2">Save</button>
@@ -566,6 +585,7 @@ window.submitExpense = async () => {
     const amountInput = document.getElementById('exp-amount');
     const msgInput = document.getElementById('exp-msg');
     const fileInput = document.getElementById('exp-file');
+    const distributionMethod = document.querySelector('input[name="exp-distribution"]:checked').value;
 
     const amount = amountInput.value;
     const msg = msgInput.value;
@@ -582,9 +602,9 @@ window.submitExpense = async () => {
         saveBtn.innerText = "Saving...";
         saveBtn.disabled = true;
 
-        await DB.recordExpense(amount, msg, file);
+        await DB.recordExpense(amount, msg, file, distributionMethod);
         
-        alert("Expense recorded! Collective pot updated.");
+        alert("Expense recorded!");
         location.reload();
     } catch (e) {
         console.error(e);

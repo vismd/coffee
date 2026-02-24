@@ -67,7 +67,7 @@ const DB = {
         return await this.logAction('COFFEE', -price, memberDoc.$id, memberDoc.name);
     },
 
-    async recordExpense(amount, message, file) {
+    async recordExpense(amount, message, file, distributionMethod = 'collective') {
         let fileId = null;
 
         // 1. If the admin selected a photo, upload it first
@@ -92,7 +92,37 @@ const DB = {
             group_funds: global.group_funds - parseFloat(amount)
         });
 
-        // 3. Log it
+        // 3. Handle distribution to members if specified
+        if (distributionMethod === 'coowners' || distributionMethod === 'all') {
+            const allMembers = await this.getAllMembers();
+            let targetMembers = [];
+
+            if (distributionMethod === 'coowners') {
+                targetMembers = allMembers.filter(m => m.is_coowner === true);
+            } else if (distributionMethod === 'all') {
+                targetMembers = allMembers;
+            }
+
+            if (targetMembers.length > 0) {
+                const costPerMember = parseFloat(amount) / targetMembers.length;
+                
+                // Deduct from each member's balance and create logs
+                for (const member of targetMembers) {
+                    const newBalance = member.balance - costPerMember;
+                    await databases.updateDocument(DB_ID, COLL_MEMBERS, member.$id, {
+                        balance: newBalance
+                    });
+                    
+                    // Log the deduction for this member
+                    const expenseLabel = distributionMethod === 'coowners' 
+                        ? `Group expense (split among co-owners): ${message}`
+                        : `Group expense (split among all members): ${message}`;
+                    await this.logAction('EXPENSE', -costPerMember, member.$id, member.name, expenseLabel, fileId);
+                }
+            }
+        }
+
+        // 4. Log the main expense action in group logs
         return await this.logAction('EXPENSE', -amount, 'ADMIN', 'System', message, fileId);
     },
 
