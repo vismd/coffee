@@ -65,7 +65,7 @@ const Analytics = {
         this.renderUserCoffeeChart();
         this.renderGroupCoffeeChart();
         this.renderGroupPurchasesChart();
-        this.renderSpendingChart();
+        this.renderCoffeeTimesChart();
         this.renderPurchaseBreakdownChart();
         this.renderActivityFeed();
     },
@@ -357,46 +357,61 @@ const Analytics = {
         });
     },
 
-    renderSpendingChart() {
+    renderCoffeeTimesChart() {
         const ctx = document.getElementById('spendingChart');
         if (!ctx) return;
 
-        // Get user's coffee logs
-        const userCoffeeLogs = this.allLogs.filter(log => 
-            log.userId === this.userMember.$id && 
-            log.type === 'COFFEE'
-        );
+        // Get all coffee logs for all users
+        const allCoffeeLogs = this.allLogs.filter(log => log.type === 'COFFEE');
 
-        // Parse logs into scatter data: {x: weekday, y: hour}
-        const scatterData = userCoffeeLogs.map(log => {
-            const logDate = new Date(log.timestamp);
-            const weekday = logDate.getDay(); // 0-6 (Sun-Sat)
-            const hour = logDate.getHours() + logDate.getMinutes() / 60; // 0-24
-            
-            // Add jitter to x (weekday) to spread overlapping points
-            const jitter = (Math.random() - 0.5) * 0.6; // Random between -0.3 and 0.3
-            
+        // Group logs by user
+        const logsByUser = {};
+        allCoffeeLogs.forEach(log => {
+            if (!logsByUser[log.userId]) {
+                logsByUser[log.userId] = [];
+            }
+            logsByUser[log.userId].push(log);
+        });
+
+        // Create datasets for each user with jitter
+        const colors = this.getChartColors();
+        const datasets = Object.keys(logsByUser).map((userId, index) => {
+            const userLogs = logsByUser[userId];
+            const scatterData = userLogs.map(log => {
+                const logDate = new Date(log.timestamp);
+                const weekday = logDate.getDay();
+                const hour = logDate.getHours() + logDate.getMinutes() / 60;
+                const jitter = (Math.random() - 0.5) * 0.6;
+                
+                return {
+                    x: weekday + jitter,
+                    y: hour
+                };
+            });
+
+            // Find user name
+            const userName = userLogs[0]?.userName || 'Unknown';
+            const color = colors.backgroundColor[index % colors.backgroundColor.length];
+            const rgbaColor = color.replace('rgb', 'rgba').replace(')', ', 0.6)');
+            const borderColor = color;
+
             return {
-                x: weekday + jitter,
-                y: hour
+                label: userName,
+                data: scatterData,
+                backgroundColor: rgbaColor,
+                borderColor: borderColor,
+                borderWidth: 2,
+                pointRadius: 5,
+                pointHoverRadius: 7
             };
         });
 
         const weekdayLabels = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const colors = this.getChartColors();
 
-        this.charts.spending = new Chart(ctx, {
+        this.charts.coffeetimes = new Chart(ctx, {
             type: 'scatter',
             data: {
-                datasets: [{
-                    label: 'Your Coffee Times',
-                    data: scatterData,
-                    backgroundColor: 'rgba(73, 126, 167, 0.6)',
-                    borderColor: 'rgba(73, 126, 167, 1)',
-                    borderWidth: 2,
-                    pointRadius: 5,
-                    pointHoverRadius: 7
-                }]
+                datasets: datasets
             },
             options: {
                 responsive: true,
