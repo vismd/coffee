@@ -671,13 +671,13 @@ body.dark-mode .coowner-badge {
 
 /* Hidden activity indicator (for admin view) */
 .activity-item.hidden-activity {
-    border-left: 4px solid #ff7675;
-    padding-left: 12px;
+    border-left: 4px solid #ff7675 !important;
+    padding-left: 12px !important;
     opacity: 0.75;
 }
 
 body.dark-mode .activity-item.hidden-activity {
-    border-left-color: #ff6b6b;
+    border-left-color: #ff6b6b !important;
 }
 
 /* Radio Button Styling */
