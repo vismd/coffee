@@ -496,8 +496,14 @@ body.dark-mode .metric-label {
     height: 300px;
     margin-bottom: 1rem;
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: center;
+    width: 100%;
+}
+
+.chart-container canvas {
+    max-width: 100% !important;
+    height: 100% !important;
 }
 
 .stats-text {

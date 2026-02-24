@@ -208,7 +208,7 @@ const Analytics = {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         display: true,
@@ -263,7 +263,7 @@ const Analytics = {
             options: {
                 indexAxis: 'y',
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         display: true,
@@ -332,7 +332,7 @@ const Analytics = {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         display: true,
@@ -415,7 +415,7 @@ const Analytics = {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         labels: { color: colors.textColor }
@@ -503,7 +503,7 @@ const Analytics = {
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: {
                         labels: { color: colors.textColor }
