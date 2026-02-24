@@ -4,6 +4,7 @@ const Analytics = {
     allLogs: [],
     groupLogs: [],
     charts: {},
+    isAdmin: false,
 
     async init() {
         try {
@@ -33,6 +34,7 @@ const Analytics = {
             this.allMembers = await DB.getAllMembers();
             this.allLogs = await this.getAllLogs();
             this.groupLogs = await DB.getGroupLogs();
+            this.isAdmin = await Auth.checkAdminStatus();
 
             // Render analytics
             this.renderAnalytics();
@@ -444,11 +446,32 @@ const Analytics = {
         });
     },
 
+    isActivityVisibleToUser(log) {
+        // Group activities (always visible)
+        if (['EXPENSE', 'BEANS'].includes(log.type)) {
+            return true;
+        }
+        
+        // User's own activities (always visible)
+        if (log.userId === this.userMember.$id) {
+            return true;
+        }
+        
+        return false;
+    },
+
     renderActivityFeed() {
         const container = document.getElementById('activityFeed');
         if (!container) return;
 
-        const recentLogs = this.allLogs.slice(0, 15);
+        let filteredLogs = this.allLogs;
+        
+        // If not admin, filter to show only relevant activities
+        if (!this.isAdmin) {
+            filteredLogs = this.allLogs.filter(log => this.isActivityVisibleToUser(log));
+        }
+        
+        const recentLogs = filteredLogs.slice(0, 15);
         const html = recentLogs.map(log => {
             const date = new Date(log.timestamp);
             const dateStr = date.toLocaleDateString('en-US', { 
@@ -460,12 +483,14 @@ const Analytics = {
                 minute: '2-digit'
             });
             
-            const typeEmoji = log.type === 'COFFEE' ? '☕' : '💰';
+            const typeEmoji = log.type === 'COFFEE' ? '☕' : log.type === 'EXPENSE' ? '💰' : log.type === 'BEANS' ? '🫘' : log.type === 'TOPUP' ? '💵' : '⚙️';
             const isUser = log.userId === this.userMember.$id;
+            const isVisible = this.isActivityVisibleToUser(log);
+            const isHidden = this.isAdmin && !isVisible;
             const message = log.message ? log.message : '';
             
             return `
-                <div class="activity-item ${isUser ? 'user-activity' : ''}">
+                <div class="activity-item ${isUser ? 'user-activity' : ''} ${isHidden ? 'hidden-activity' : ''}">
                     <span class="activity-emoji">${typeEmoji}</span>
                     <div class="activity-content">
                         <div class="activity-header">

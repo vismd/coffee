@@ -91,6 +91,9 @@ nav {
 .welcome-header h2 {
     margin: 0;
     flex: 1;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
 }
 
 .btn-qr {
@@ -651,21 +654,76 @@ body.dark-mode .activity-amount {
 
 .coowner-badge {
     display: inline-block;
-    background: linear-gradient(135deg, #ffd700, #ffed4e);
-    color: #333;
+    background: var(--accent);
+    color: white;
     font-size: 0.65rem;
     font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 10px;
-    margin-left: 6px;
+    padding: 2px 8px;
+    border-radius: 6px;
     letter-spacing: 0.5px;
-    box-shadow: 0 2px 4px rgba(255, 215, 0, 0.3);
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(73, 126, 167, 0.3);
 }
 
 body.dark-mode .coowner-badge {
-    background: linear-gradient(135deg, #d4a500, #e8c200);
-    color: #1a1a1a;
-    box-shadow: 0 2px 4px rgba(212, 165, 0, 0.4);
+    box-shadow: 0 2px 4px rgba(73, 126, 167, 0.5);
+}
+
+/* Hidden activity indicator (for admin view) */
+.activity-item.hidden-activity {
+    border-left: 4px solid #ff7675;
+    padding-left: 12px;
+    opacity: 0.75;
+}
+
+body.dark-mode .activity-item.hidden-activity {
+    border-left-color: #ff6b6b;
+}
+
+/* Radio Button Styling */
+input[type="radio"] {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+input[type="radio"]:hover {
+    box-shadow: 0 0 0 3px rgba(73, 126, 167, 0.1);
+}
+
+input[type="radio"]:checked {
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(73, 126, 167, 0.2);
+}
+
+input[type="radio"]:checked::after {
+    content: '✓';
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+body.dark-mode input[type="radio"] {
+    border-color: var(--accent);
+}
+
+body.dark-mode input[type="radio"]:hover {
+    box-shadow: 0 0 0 3px rgba(73, 126, 167, 0.2);
+}
+
+body.dark-mode input[type="radio"]:checked {
+    background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(73, 126, 167, 0.3);
 }
 
 /* Responsive Design */
