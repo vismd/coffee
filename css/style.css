@@ -68,6 +68,7 @@ nav {
     max-width: 500px;
     padding: 2rem;
     margin-top: 70px;
+    box-sizing: border-box;
 }
 
 .card {
@@ -494,6 +495,9 @@ body.dark-mode .metric-label {
     position: relative;
     height: 300px;
     margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .stats-text {
@@ -672,6 +676,11 @@ body.dark-mode .coowner-badge {
     box-shadow: 0 2px 4px rgba(73, 126, 167, 0.5);
 }
 
+#purchaseBreakdownChart {
+    max-width: 100%;
+    height: auto !important;
+}
+
 /* Hidden activity indicator (for admin view) */
 .activity-item.hidden-activity {
     border-left: 4px solid #ff7675 !important;
@@ -809,7 +818,7 @@ body.dark-mode input[type="radio"]:checked {
     }
 
     .metrics-panel {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: repeat(2, 1fr) !important;
         gap: 0.75rem !important;
     }
 
@@ -831,6 +840,6 @@ body.dark-mode input[type="radio"]:checked {
     }
 
     .chart-container {
-        height: 200px;
+        height: 280px;
     }
 }
