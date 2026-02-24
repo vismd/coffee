@@ -122,7 +122,7 @@ const DB = {
                 coffee_price_per_cup: config.coffee_price_per_cup || 0.50,
                 coffee_price_per_gram: config.coffee_price_per_gram || 0.0278 // Default based on 0.50/18g
                 ,
-                surcharge_percent: config.surcharge_percent || 10 // default 10%
+                surcharge_percent: config.surcharge_percent || 50 // default 10%
             };
         } catch (error) {
             console.error("Error fetching global config:", error);
@@ -132,7 +132,7 @@ const DB = {
                 coffee_price_per_cup: 0.50,
                 coffee_price_per_gram: 0.0278
                 ,
-                surcharge_percent: 10
+                surcharge_percent: 50
             };
         }
     },
