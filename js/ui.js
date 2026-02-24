@@ -21,7 +21,7 @@ const UI = {
                 </div>
                 ${member.balance < 5 ? `
                     <div class="low-balance-notice" style="background:#FF8775;border-left:4px solid #FF2F0F;padding:10px;border-radius:6px;margin-bottom:10px;display:flex;flex-direction:column;align-items:stretch;gap:8px;"> 
-                        <div style="color:#fff; width:100%;">There will be a surcharge of €${(Math.round((coffeePrice * (surchargePercent||0) / 100) * 100)/100).toFixed(2)} per coffee because your balance is low.<br>Please top up your account.</div>
+                        <div style="color:#fff; width:100%;">There will be a surcharge of €${(Math.round((coffeePrice * (surchargePercent||0) / 100) * 100)/100).toFixed(2)} per coffee because your balance is low.<br><b>Please top up your account.</b></div>
                         <div style="display:flex;gap:8px; width:100%; justify-content:flex-end;">
                             <button class="btn-primary" onclick="window.showTopupInfoModal()" style="white-space:nowrap;">How to top up</button>
                         </div>
