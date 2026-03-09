@@ -62,6 +62,7 @@ const Analytics = {
 
     renderAnalytics() {
         this.renderMetricsPanel();
+        this.renderBadges();
         this.renderUserCoffeeChart();
         this.renderGroupCoffeeChart();
         this.renderGroupPurchasesChart();
@@ -139,6 +140,100 @@ const Analytics = {
                 <span class="metric-value ${balanceClass}">€${this.userMember.balance.toFixed(2)}</span>
             </div>
         `;
+    },
+
+    renderBadges() {
+        const container = document.getElementById('badgesPanel');
+        if (!container) return;
+
+        const now = new Date();
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const recentLogs = this.allLogs.filter(log => 
+            log.type === 'COFFEE' && 
+            new Date(log.timestamp) > sevenDaysAgo
+        );
+
+        if (recentLogs.length === 0) {
+            container.innerHTML = '<p>No coffee data for the past week.</p>';
+            return;
+        }
+
+        // Coffee Champion: Most coffees
+        const userCounts = {};
+        recentLogs.forEach(log => {
+            userCounts[log.userId] = (userCounts[log.userId] || 0) + 1;
+        });
+        const maxCount = Math.max(...Object.values(userCounts));
+        const championId = Object.keys(userCounts).find(id => userCounts[id] === maxCount);
+        const championName = this.allMembers.find(m => m.$id === championId)?.name || 'Unknown';
+
+        // Early Bird: Earliest coffee
+        let earliestTime = Infinity;
+        let earlyBirdId = null;
+        recentLogs.forEach(log => {
+            const time = new Date(log.timestamp).getTime();
+            if (time < earliestTime) {
+                earliestTime = time;
+                earlyBirdId = log.userId;
+            }
+        });
+        const earlyBirdName = this.allMembers.find(m => m.$id === earlyBirdId)?.name || 'Unknown';
+        const earlyHour = new Date(earliestTime).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+
+        // Night Owl: Latest coffee
+        let latestTime = -Infinity;
+        let nightOwlId = null;
+        recentLogs.forEach(log => {
+            const time = new Date(log.timestamp).getTime();
+            if (time > latestTime) {
+                latestTime = time;
+                nightOwlId = log.userId;
+            }
+        });
+        const nightOwlName = this.allMembers.find(m => m.$id === nightOwlId)?.name || 'Unknown';
+        const lateHour = new Date(latestTime).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+
+        // Weekend Warrior: Most coffees on weekends
+        const weekendLogs = recentLogs.filter(log => {
+            const day = new Date(log.timestamp).getDay();
+            return day === 0 || day === 6; // Sunday or Saturday
+        });
+        const weekendCounts = {};
+        weekendLogs.forEach(log => {
+            weekendCounts[log.userId] = (weekendCounts[log.userId] || 0) + 1;
+        });
+        const maxWeekend = weekendCounts ? Math.max(...Object.values(weekendCounts)) : 0;
+        const warriorId = maxWeekend > 0 ? Object.keys(weekendCounts).find(id => weekendCounts[id] === maxWeekend) : null;
+        const warriorName = warriorId ? this.allMembers.find(m => m.$id === warriorId)?.name || 'Unknown' : 'No one';
+
+        let badgesHTML = `
+            <div class="badges-container">
+                <div class="badge">
+                    <h3>🏆 Coffee Champion</h3>
+                    <p>${championName}<br>${maxCount} coffees</p>
+                </div>
+                <div class="badge">
+                    <h3>🐦 Early Bird</h3>
+                    <p>${earlyBirdName}<br>${earlyHour}</p>
+                </div>
+                <div class="badge">
+                    <h3>🦉 Night Owl</h3>
+                    <p>${nightOwlName}<br>${lateHour}</p>
+                </div>`;
+
+        if (maxWeekend > 0) {
+            badgesHTML += `
+                <div class="badge">
+                    <h3>⚔️ Weekend Warrior</h3>
+                    <p>${warriorName}<br>${maxWeekend} weekend coffees</p>
+                </div>`;
+        }
+
+        badgesHTML += `
+            </div>
+        `;
+
+        container.innerHTML = badgesHTML;
     },
 
     getChartColors() {
@@ -412,8 +507,8 @@ const Analytics = {
         // Calculate min and max hours
         const minHour = Math.min(...allHours);
         const maxHour = Math.max(...allHours);
-        const yMin = Math.max(0, minHour - 0.5);
-        const yMax = Math.min(24, maxHour + 0.5);
+        const yMin = Math.max(0, Math.floor(minHour) - 1);
+        const yMax = Math.min(24, Math.ceil(maxHour) + 1);
 
         const weekdayLabels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -456,9 +551,11 @@ const Analytics = {
                         max: yMax,
                         ticks: {
                             callback: function(value) {
-                                return value + ':00';
+                                const hours = Math.floor(value);
+                                const mins = Math.round((value - hours) * 60);
+                                return `${hours}:${mins.toString().padStart(2, '0')}`;
                             },
-                            stepSize: 2,
+                            stepSize: 1,
                             color: colors.textColor
                         },
                         grid: {
@@ -485,11 +582,12 @@ const Analytics = {
             const message = (log.message || 'Other').toLowerCase();
             let category = 'Other';
             
-            if (message.includes('coffee') || message.includes('beans')) category = 'Coffee Beans';
+            if (message.includes('beans')) category = 'Coffee Beans';
+            else if (message.includes('machine') || message.includes('equipment')) category = 'Equipment';
             else if (message.includes('milk') || message.includes('cream')) category = 'Milk/Cream';
             else if (message.includes('sugar') || message.includes('sweetener')) category = 'Sugar/Sweetener';
             else if (message.includes('cup') || message.includes('filter')) category = 'Supplies';
-            else if (message.includes('machine') || message.includes('equipment')) category = 'Equipment';
+            else if (message.includes('coffee')) category = 'Coffee';
 
             categories[category] = (categories[category] || 0) + Math.abs(log.amount);
         });

@@ -468,6 +468,47 @@ body.dark-mode .metric-label {
     color: #34c759;
 }
 
+.badges-panel {
+    margin-bottom: 2rem;
+}
+
+.badges-container {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.badge {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+    min-width: 150px;
+    flex: 1;
+    max-width: 200px;
+}
+
+.badge:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+
+.badge h3 {
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+    color: var(--text);
+}
+
+.badge p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
 .metric-value.negative {
     color: #ff3b30;
 }
