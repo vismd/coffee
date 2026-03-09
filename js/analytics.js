@@ -375,6 +375,7 @@ const Analytics = {
 
         // Create datasets for each user with jitter
         const colors = this.getChartColors();
+        let allHours = [];
         const datasets = Object.keys(logsByUser).map((userId, index) => {
             const userLogs = logsByUser[userId];
             const scatterData = userLogs.map(log => {
@@ -382,6 +383,8 @@ const Analytics = {
                 const weekday = (logDate.getDay() + 6) % 7; // Convert Sun=0 to Mon=0
                 const hour = logDate.getHours() + logDate.getMinutes() / 60;
                 const jitter = (Math.random() - 0.5) * 0.6;
+                
+                allHours.push(hour);
                 
                 return {
                     x: weekday + jitter,
@@ -405,6 +408,12 @@ const Analytics = {
                 pointHoverRadius: 7
             };
         });
+
+        // Calculate min and max hours
+        const minHour = Math.min(...allHours);
+        const maxHour = Math.max(...allHours);
+        const yMin = Math.max(0, minHour - 0.5);
+        const yMax = Math.min(24, maxHour + 0.5);
 
         const weekdayLabels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -443,8 +452,8 @@ const Analytics = {
                         }
                     },
                     y: {
-                        min: 0,
-                        max: 24,
+                        min: yMin,
+                        max: yMax,
                         ticks: {
                             callback: function(value) {
                                 return value + ':00';

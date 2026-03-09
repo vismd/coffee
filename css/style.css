@@ -494,7 +494,7 @@ body.dark-mode .metric-label {
 
 .chart-container {
     position: relative;
-    height: 300px;
+    height: 400px;
     margin-bottom: 1rem;
     display: flex;
     align-items: stretch;
@@ -799,7 +799,7 @@ body.dark-mode input[type="radio"]:checked {
     }
 
     .chart-container {
-        height: 250px;
+        height: 350px;
     }
 }
 
@@ -848,6 +848,6 @@ body.dark-mode input[type="radio"]:checked {
     }
 
     .chart-container {
-        height: 280px;
+        height: 380px;
     }
 }
