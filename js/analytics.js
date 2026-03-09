@@ -167,31 +167,33 @@ const Analytics = {
         const championId = Object.keys(userCounts).find(id => userCounts[id] === maxCount);
         const championName = this.allMembers.find(m => m.$id === championId)?.name || 'Unknown';
 
-        // Early Bird: Earliest coffee
-        let earliestTime = Infinity;
+        // Early Bird: Earliest coffee time of day
+        let earliestHour = Infinity;
         let earlyBirdId = null;
         recentLogs.forEach(log => {
-            const time = new Date(log.timestamp).getTime();
-            if (time < earliestTime) {
-                earliestTime = time;
+            const logDate = new Date(log.timestamp);
+            const hour = logDate.getHours() + logDate.getMinutes() / 60;
+            if (hour < earliestHour) {
+                earliestHour = hour;
                 earlyBirdId = log.userId;
             }
         });
         const earlyBirdName = this.allMembers.find(m => m.$id === earlyBirdId)?.name || 'Unknown';
-        const earlyHour = new Date(earliestTime).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+        const earlyHour = `${Math.floor(earliestHour)}:${Math.round((earliestHour % 1) * 60).toString().padStart(2, '0')}`;
 
-        // Night Owl: Latest coffee
-        let latestTime = -Infinity;
+        // Night Owl: Latest coffee time of day
+        let latestHour = -Infinity;
         let nightOwlId = null;
         recentLogs.forEach(log => {
-            const time = new Date(log.timestamp).getTime();
-            if (time > latestTime) {
-                latestTime = time;
+            const logDate = new Date(log.timestamp);
+            const hour = logDate.getHours() + logDate.getMinutes() / 60;
+            if (hour > latestHour) {
+                latestHour = hour;
                 nightOwlId = log.userId;
             }
         });
         const nightOwlName = this.allMembers.find(m => m.$id === nightOwlId)?.name || 'Unknown';
-        const lateHour = new Date(latestTime).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+        const lateHour = `${Math.floor(latestHour)}:${Math.round((latestHour % 1) * 60).toString().padStart(2, '0')}`;
 
         // Weekend Warrior: Most coffees on weekends
         const weekendLogs = recentLogs.filter(log => {
