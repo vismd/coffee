@@ -5,6 +5,23 @@ const Analytics = {
     groupLogs: [],
     charts: {},
     isAdmin: false,
+    scatterplotSettings: {
+        selectedUsers: new Set(),
+        dotSize: 3,
+        jitter: 0.5
+    },
+
+    getModalColors() {
+        const isDarkMode = document.body.classList.contains('dark-mode');
+        return {
+            bg: isDarkMode ? '#2d3436' : '#ffffff',
+            text: isDarkMode ? '#ffffff' : '#2d3436',
+            secondaryText: isDarkMode ? '#cccccc' : '#666666',
+            inputBg: isDarkMode ? '#2b2b2b' : '#ffffff',
+            inputText: isDarkMode ? '#ffffff' : '#2d3436',
+            inputBorder: isDarkMode ? '#555' : '#ddd'
+        };
+    },
 
     async init() {
         try {
@@ -35,6 +52,11 @@ const Analytics = {
             this.allLogs = await this.getAllLogs();
             this.groupLogs = await DB.getGroupLogs();
             this.isAdmin = await Auth.checkAdminStatus();
+
+            // Initialize scatterplot settings with users who have coffee data selected
+            const allCoffeeLogs = this.allLogs.filter(log => log.type === 'COFFEE');
+            const usersWithData = new Set(allCoffeeLogs.map(log => log.userId));
+            this.scatterplotSettings.selectedUsers = new Set(usersWithData);
 
             // Render analytics
             this.renderAnalytics();
@@ -209,6 +231,7 @@ const Analytics = {
         const warriorName = warriorId ? this.allMembers.find(m => m.$id === warriorId)?.name || 'Unknown' : 'No one';
 
         let badgesHTML = `
+            <h3 style="margin-bottom: 15px; color: var(--text); font-size: 1.2rem;">🏆 Weekly Champions (Last 7 Days)</h3>
             <div class="badges-container">
                 <div class="badge">
                     <h3>🏆 Coffee Champion</h3>
@@ -273,20 +296,42 @@ const Analytics = {
 
         // Group by weekday (Monday = 0, Sunday = 6)
         const weekdayData = [0, 0, 0, 0, 0, 0, 0]; // Mon-Sun
-        const weekdayCount = [0, 0, 0, 0, 0, 0, 0];
+        const weekdayOccurrences = [0, 0, 0, 0, 0, 0, 0]; // How many times each weekday occurred
         const weekdayLabels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+        // Count occurrences of each weekday in the 30-day period
+        for (let i = 0; i < 30; i++) {
+            const date = new Date(thirtyDaysAgo.getTime() + i * 24 * 60 * 60 * 1000);
+            const dayOfWeek = (date.getDay() + 6) % 7; // Convert Sun=0 to Mon=0
+            weekdayOccurrences[dayOfWeek]++;
+        }
 
         userLogs.forEach(log => {
             const logDate = new Date(log.timestamp);
             const dayOfWeek = (logDate.getDay() + 6) % 7; // Convert Sun=0 to Mon=0
             weekdayData[dayOfWeek]++;
-            weekdayCount[dayOfWeek]++;
         });
 
+        // Check if there are weekend entries (Saturday = 5, Sunday = 6)
+        const hasWeekendData = weekdayData[5] > 0 || weekdayData[6] > 0;
+        
+        let filteredLabels, filteredData, filteredOccurrences;
+        if (hasWeekendData) {
+            // Show only Saturday and Sunday
+            filteredLabels = ['Saturday', 'Sunday'];
+            filteredData = [weekdayData[5], weekdayData[6]];
+            filteredOccurrences = [weekdayOccurrences[5], weekdayOccurrences[6]];
+        } else {
+            // Show weekdays only (Monday to Friday)
+            filteredLabels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+            filteredData = weekdayData.slice(0, 5);
+            filteredOccurrences = weekdayOccurrences.slice(0, 5);
+        }
+
         // Calculate averages
-        const avgData = weekdayData.map((total, index) => {
-            const weeksInPeriod = 4; // Approximate
-            return (total / weeksInPeriod).toFixed(1);
+        const avgData = filteredData.map((total, index) => {
+            const occurrences = filteredOccurrences[index];
+            return occurrences > 0 ? (total / occurrences).toFixed(1) : '0.0';
         });
 
         const colors = this.getChartColors();
@@ -294,7 +339,7 @@ const Analytics = {
         this.charts.userCoffee = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: weekdayLabels,
+                labels: filteredLabels,
                 datasets: [{
                     label: 'Avg Coffees Per Weekday',
                     data: avgData,
@@ -458,6 +503,11 @@ const Analytics = {
         const ctx = document.getElementById('spendingChart');
         if (!ctx) return;
 
+        // Destroy existing chart if it exists
+        if (this.charts.coffeetimes) {
+            this.charts.coffeetimes.destroy();
+        }
+
         // Get all coffee logs for all users
         const allCoffeeLogs = this.allLogs.filter(log => log.type === 'COFFEE');
 
@@ -470,16 +520,24 @@ const Analytics = {
             logsByUser[log.userId].push(log);
         });
 
+        // Filter to only selected users
+        const filteredLogsByUser = {};
+        Object.keys(logsByUser).forEach(userId => {
+            if (this.scatterplotSettings.selectedUsers.has(userId)) {
+                filteredLogsByUser[userId] = logsByUser[userId];
+            }
+        });
+
         // Create datasets for each user with jitter
         const colors = this.getChartColors();
         let allHours = [];
-        const datasets = Object.keys(logsByUser).map((userId, index) => {
-            const userLogs = logsByUser[userId];
+        const datasets = Object.keys(filteredLogsByUser).map((userId, index) => {
+            const userLogs = filteredLogsByUser[userId];
             const scatterData = userLogs.map(log => {
                 const logDate = new Date(log.timestamp);
                 const weekday = (logDate.getDay() + 6) % 7; // Convert Sun=0 to Mon=0
                 const hour = logDate.getHours() + logDate.getMinutes() / 60;
-                const jitter = (Math.random() - 0.5) * 0.6;
+                const jitter = (Math.random() - 0.5) * this.scatterplotSettings.jitter;
                 
                 allHours.push(hour);
                 
@@ -501,8 +559,8 @@ const Analytics = {
                 backgroundColor: rgbaColor,
                 borderColor: borderColor,
                 borderWidth: 2,
-                pointRadius: 5,
-                pointHoverRadius: 7
+                pointRadius: this.scatterplotSettings.dotSize,
+                pointHoverRadius: this.scatterplotSettings.dotSize + 2
             };
         });
 
@@ -686,6 +744,108 @@ const Analytics = {
         }).join('');
 
         container.innerHTML = html || '<p>No activity yet</p>';
+    },
+
+    showScatterplotSettingsModal() {
+        // Check if modal already exists
+        if (document.getElementById('scatterplot-settings-modal')) return;
+
+        const colors = this.getModalColors();
+        
+        // Get all coffee logs for all users
+        const allCoffeeLogs = this.allLogs.filter(log => log.type === 'COFFEE');
+        
+        // Group logs by user to find users with data
+        const logsByUser = {};
+        allCoffeeLogs.forEach(log => {
+            if (!logsByUser[log.userId]) {
+                logsByUser[log.userId] = [];
+            }
+            logsByUser[log.userId].push(log);
+        });
+        
+        // Filter members to only include those with coffee data
+        const membersWithData = this.allMembers.filter(member => logsByUser[member.$id]);
+        
+        const userCheckboxes = membersWithData.map(member => {
+            const isChecked = this.scatterplotSettings.selectedUsers.has(member.$id);
+            return `
+                <label style="display:grid; grid-template-columns: 1fr auto; align-items:center; cursor:pointer; color:${colors.text}; margin-bottom:8px; gap:10px;">
+                    <span>${member.name}</span>
+                    <input type="checkbox" value="${member.$id}" ${isChecked ? 'checked' : ''} style="margin:0;">
+                </label>
+            `;
+        }).join('');
+
+        const modalHtml = `
+            <div class="modal-overlay" id="scatterplot-settings-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;">
+                <div class="card modal" style="background:${colors.bg}; color:${colors.text}; padding:30px; border-radius:24px; max-width:450px; width:90%;">
+                    <h3 style="margin-top:0; color:${colors.text}">Scatterplot Settings</h3>
+                    
+                    <div style="margin-bottom:20px;">
+                        <label style="display:block; margin-bottom:10px; font-weight:600; color:${colors.text};">Select Users to Display:</label>
+                        <div style="border-radius:8px; padding:10px; background:${colors.inputBg};">
+                            ${userCheckboxes}
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom:20px;">
+                        <label style="display:block; margin-bottom:10px; font-weight:600; color:${colors.text};">Dot Size: <span id="dot-size-value">${this.scatterplotSettings.dotSize}</span></label>
+                        <input type="range" id="dot-size-slider" min="1" max="15" value="${this.scatterplotSettings.dotSize}" style="width:100%;">
+                    </div>
+                    
+                    <div style="margin-bottom:20px;">
+                        <label style="display:block; margin-bottom:10px; font-weight:600; color:${colors.text};">Jitter: <span id="jitter-value">${this.scatterplotSettings.jitter}</span></label>
+                        <input type="range" id="jitter-slider" min="0" max="1" step="0.1" value="${this.scatterplotSettings.jitter}" style="width:100%;">
+                    </div>
+                    
+                    <div style="display:flex; gap:10px;">
+                        <button onclick="Analytics.applyScatterplotSettings()" class="btn-primary" style="flex:2">Apply</button>
+                        <button onclick="document.getElementById('scatterplot-settings-modal').remove()" class="btn-cancel" style="flex:1">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        // Add event listener for live dot size preview
+        const slider = document.getElementById('dot-size-slider');
+        const valueDisplay = document.getElementById('dot-size-value');
+        slider.addEventListener('input', (e) => {
+            valueDisplay.textContent = e.target.value;
+        });
+
+        // Add event listener for live jitter preview
+        const jitterSlider = document.getElementById('jitter-slider');
+        const jitterValueDisplay = document.getElementById('jitter-value');
+        jitterSlider.addEventListener('input', (e) => {
+            jitterValueDisplay.textContent = e.target.value;
+        });
+    },
+
+    applyScatterplotSettings() {
+        // Update selected users
+        const checkboxes = document.querySelectorAll('#scatterplot-settings-modal input[type="checkbox"]');
+        this.scatterplotSettings.selectedUsers.clear();
+        checkboxes.forEach(cb => {
+            if (cb.checked) {
+                this.scatterplotSettings.selectedUsers.add(cb.value);
+            }
+        });
+
+        // Update dot size
+        const dotSize = parseInt(document.getElementById('dot-size-slider').value);
+        this.scatterplotSettings.dotSize = dotSize;
+
+        // Update jitter
+        const jitter = parseFloat(document.getElementById('jitter-slider').value);
+        this.scatterplotSettings.jitter = jitter;
+
+        // Re-render the chart
+        Analytics.renderCoffeeTimesChart();
+
+        // Close modal
+        document.getElementById('scatterplot-settings-modal').remove();
     }
 };
 
