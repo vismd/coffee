@@ -271,7 +271,6 @@ const App = {
                     </div>
                 </div>`;
             app.innerHTML += potHtml;
-            app.innerHTML += UI.renderLogs(groupLogs);
         } catch (e) {
             console.warn('Failed to render group pot on main page', e);
         }
@@ -287,6 +286,17 @@ const App = {
             const adminBtn = document.createElement('div');
             adminBtn.innerHTML = `<div style="margin-top:12px"><button class="btn-primary" onclick="window.showAdminView()">Open Admin Panel</button></div>`;
             app.appendChild(adminBtn);
+        }
+
+        // Add recent activity feed at the bottom
+        try {
+            const groupLogs = await DB.getGroupLogs();
+            const activityHtml = UI.renderLogs(groupLogs);
+            const activityDiv = document.createElement('div');
+            activityDiv.innerHTML = activityHtml;
+            app.appendChild(activityDiv);
+        } catch (e) {
+            console.warn('Failed to render activity feed on main page', e);
         }
     }
 };

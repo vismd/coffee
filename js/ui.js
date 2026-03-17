@@ -89,7 +89,7 @@ UI.renderLogs = (logs) => {
         const hasImage = log.fileId; // Check if this log has an associated image
         const imageBtn = hasImage ? `<button class="btn-view-image" onclick="window.viewExpenseImage('${log.fileId}')">Receipt</button>` : '';
         
-        // Get icon based on log type
+        // Get emoji based on log type
         const typeIcons = {
             'COFFEE': '☕',
             'EXPENSE': '💰',
@@ -97,21 +97,40 @@ UI.renderLogs = (logs) => {
             'BEANS': '🫘',
             'SURCHARGE': '⚠️'
         };
-        const icon = typeIcons[log.type] || '⚙️';
+        const typeEmoji = typeIcons[log.type] || '⚙️';
         
-        // Use message if available, otherwise use type
-        const description = log.message || log.type;
+        const date = new Date(log.timestamp);
+        const dateStr = date.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric'
+        });
+        const timeStr = date.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        
+        const message = log.message;
         
         return `
-        <div class="log-item">
-            <span class="log-date">${new Date(log.timestamp).toLocaleDateString()}</span>
-            <span class="log-icon">${icon}</span>
-            <span class="log-desc">${description}</span>
+        <div class="activity-item">
+            <span class="activity-emoji">${typeEmoji}</span>
+            <div class="activity-content">
+                <div class="activity-header">
+                    <span class="activity-user">${log.userName}</span>
+                    <span class="activity-type">${log.type}</span>
+                </div>
+                ${message ? `<div class="activity-desc">${message}</div>` : ''}
+                <div class="activity-meta">
+                    <span class="activity-time">${dateStr} at ${timeStr}</span>
+                    <span class="activity-amount ${log.amount < 0 ? 'negative' : 'positive'}">
+                        ${log.amount < 0 ? '−' : '+'}€${Math.abs(log.amount).toFixed(2)}
+                    </span>
+                </div>
+            </div>
             ${imageBtn}
-            <span class="log-amt ${log.amount < 0 ? 'neg' : 'pos'}">${log.amount > 0 ? '+' : ''}€${log.amount.toFixed(2)}</span>
         </div>
     `;
     }).join('');
     
-    return `<div class="card logs-card"><h3>Recent Activity</h3>${items}</div>`;
+    return `<div class="activity-feed"><h3>Recent Activity</h3>${items}</div>`;
 };
