@@ -770,15 +770,46 @@ const Analytics = {
         const userCheckboxes = membersWithData.map(member => {
             const isChecked = this.scatterplotSettings.selectedUsers.has(member.$id);
             return `
-                <label style="display:grid; grid-template-columns: 1fr auto; align-items:center; cursor:pointer; color:${colors.text}; margin-bottom:8px; gap:10px;">
-                    <span>${member.name}</span>
-                    <input type="checkbox" value="${member.$id}" ${isChecked ? 'checked' : ''} style="margin:0;">
-                </label>
+                <div class="user-toggle-row ${isChecked ? 'selected' : 'disabled'}" data-user-id="${member.$id}" style="padding:12px; margin-bottom:8px; border-radius:8px; cursor:pointer; transition:all 0.2s; background:${isChecked ? colors.inputBg : 'transparent'};">
+                    <span style="font-weight:500; color:${isChecked ? '#497ea7' : colors.secondaryText}; transition:color 0.2s;">${member.name}</span>
+                </div>
             `;
         }).join('');
 
-        const modalHtml = `
-            <div class="modal-overlay" id="scatterplot-settings-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;">
+        const modalHtml = `            <style>
+                .user-toggle-row:hover {
+                    background: ${colors.inputBg} !important;
+                }
+                .user-toggle-row.selected {
+                    background: ${colors.inputBg} !important;
+                }
+                .user-toggle-row.disabled span {
+                    opacity: 0.5;
+                }
+                input[type="range"] {
+                    -webkit-appearance: none;
+                    appearance: none;
+                    height: 8px;
+                    background: ${colors.inputBorder};
+                    border: none;
+                    border-radius: 14px;
+                    outline: none;
+                    cursor: pointer;
+                }
+                input[type="range"]::-webkit-slider-thumb {
+                    -webkit-appearance: none;
+                    appearance: none;
+                    width: 0;
+                    height: 0;
+                    background: transparent;
+                }
+                input[type="range"]::-moz-range-thumb {
+                    width: 0;
+                    height: 0;
+                    background: transparent;
+                    border: none;
+                }
+            </style>            <div class="modal-overlay" id="scatterplot-settings-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;">
                 <div class="card modal" style="background:${colors.bg}; color:${colors.text}; padding:30px; border-radius:24px; max-width:450px; width:90%;">
                     <h3 style="margin-top:0; color:${colors.text}">Scatterplot Settings</h3>
                     
@@ -808,28 +839,53 @@ const Analytics = {
         `;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
 
+        // Add event listeners for user toggle rows
+        const toggleRows = document.querySelectorAll('.user-toggle-row');
+        const modalColors = this.getModalColors();
+        toggleRows.forEach(row => {
+            row.addEventListener('click', () => {
+                row.classList.toggle('selected');
+                row.classList.toggle('disabled');
+                const isSelected = row.classList.contains('selected');
+                row.style.background = isSelected ? modalColors.inputBg : 'transparent';
+                const span = row.querySelector('span');
+                span.style.color = isSelected ? '#497ea7' : modalColors.secondaryText;
+            });
+        });
+
         // Add event listener for live dot size preview
         const slider = document.getElementById('dot-size-slider');
         const valueDisplay = document.getElementById('dot-size-value');
+        const updateSliderBackground = (sliderElement) => {
+            const percent = ((sliderElement.value - sliderElement.min) / (sliderElement.max - sliderElement.min)) * 100;
+            sliderElement.style.background = `linear-gradient(to right, ${modalColors.text} 0%, ${modalColors.text} ${percent}%, ${modalColors.inputBorder} ${percent}%, ${modalColors.inputBorder} 100%)`;
+        };
         slider.addEventListener('input', (e) => {
             valueDisplay.textContent = e.target.value;
+            updateSliderBackground(e.target);
         });
+        // Set initial background
+        updateSliderBackground(slider);
 
         // Add event listener for live jitter preview
         const jitterSlider = document.getElementById('jitter-slider');
         const jitterValueDisplay = document.getElementById('jitter-value');
         jitterSlider.addEventListener('input', (e) => {
             jitterValueDisplay.textContent = e.target.value;
+            updateSliderBackground(e.target);
         });
+        // Set initial background
+        updateSliderBackground(jitterSlider);
     },
 
     applyScatterplotSettings() {
         // Update selected users
-        const checkboxes = document.querySelectorAll('#scatterplot-settings-modal input[type="checkbox"]');
+        const toggleRows = document.querySelectorAll('#scatterplot-settings-modal .user-toggle-row');
         this.scatterplotSettings.selectedUsers.clear();
-        checkboxes.forEach(cb => {
-            if (cb.checked) {
-                this.scatterplotSettings.selectedUsers.add(cb.value);
+        toggleRows.forEach(row => {
+            if (row.classList.contains('selected')) {
+                const userId = row.getAttribute('data-user-id');
+                this.scatterplotSettings.selectedUsers.add(userId);
             }
         });
 
