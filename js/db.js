@@ -353,5 +353,98 @@ const DB = {
             console.error("Error registering coffee:", error);
             throw error;
         }
+    },
+
+    // Get all co-owners sorted alphabetically
+    async getCoowners() {
+        try {
+            const members = await this.getAllMembers();
+            return members
+                .filter(m => m.is_coowner === true)
+                .sort((a, b) => a.name.localeCompare(b.name));
+        } catch (error) {
+            console.error("Error fetching co-owners:", error);
+            return [];
+        }
+    },
+
+    // Get current descaling state
+    async getDescaleState() {
+        try {
+            const config = await databases.getDocument(DB_ID, COLL_GLOBAL, 'main');
+            return {
+                last_descale_person: config.last_descale_person || null,
+                last_descale_date: config.last_descale_date || null,
+                next_descale_person: config.next_descale_person || null,
+                next_descale_person_id: config.next_descale_person_id || null,
+                descale_notification_mode: config.descale_notification_mode || false
+            };
+        } catch (error) {
+            console.error("Error fetching descale state:", error);
+            return {
+                last_descale_person: null,
+                last_descale_date: null,
+                next_descale_person: null,
+                next_descale_person_id: null,
+                descale_notification_mode: false
+            };
+        }
+    },
+
+    // Record a descaling event and advance the rotation
+    async recordDescaling(personName, personId) {
+        try {
+            // Get co-owners to determine next person
+            const coowners = await this.getCoowners();
+            if (coowners.length === 0) throw new Error("No co-owners found");
+
+            // Find index of current person
+            const currentIndex = coowners.findIndex(co => co.$id === personId);
+            const nextIndex = (currentIndex + 1) % coowners.length;
+            const nextPerson = coowners[nextIndex];
+
+            // Update global config with new descaling state
+            const config = await databases.getDocument(DB_ID, COLL_GLOBAL, 'main');
+            await databases.updateDocument(DB_ID, COLL_GLOBAL, 'main', {
+                last_descale_person: personName,
+                last_descale_date: new Date().toISOString(),
+                next_descale_person: nextPerson.name,
+                next_descale_person_id: nextPerson.$id,
+                descale_notification_mode: false // Auto-disable notification mode
+            });
+
+            // Log the descaling event
+            return await this.logAction('DESCALE', 0, personId, personName, 'Descaled the coffee machine');
+        } catch (error) {
+            console.error("Error recording descaling:", error);
+            throw error;
+        }
+    },
+
+    // Toggle descaling notification mode
+    async toggleDescaleNotificationMode(enable) {
+        try {
+            await databases.updateDocument(DB_ID, COLL_GLOBAL, 'main', {
+                descale_notification_mode: enable
+            });
+            return true;
+        } catch (error) {
+            console.error("Error toggling notification mode:", error);
+            throw error;
+        }
+    },
+
+    // Manually set the next person to descale (admin override)
+    async setNextDescalePerson(personName, personId) {
+        try {
+            await databases.updateDocument(DB_ID, COLL_GLOBAL, 'main', {
+                next_descale_person: personName,
+                next_descale_person_id: personId
+            });
+            return true;
+        } catch (error) {
+            console.error("Error setting next descale person:", error);
+            throw error;
+        }
     }
 };

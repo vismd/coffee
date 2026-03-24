@@ -253,18 +253,29 @@ const App = {
     async renderDashboard() {
         const app = document.getElementById('app');
         
-        // Get dynamic coffee price
+        // Get dynamic coffee price and descaling state
         const config = await DB.getGlobalConfig();
+        const descaleState = await DB.getDescaleState();
+        
+        // Show notification banner if notification mode is enabled
+        if (descaleState.descale_notification_mode && descaleState.next_descale_person) {
+            app.innerHTML = UI.renderDescaleNotificationBanner(descaleState.next_descale_person, descaleState.next_descale_person_id);
+        }
         
         // Render personal UI with dynamic price and surcharge percent
-        app.innerHTML = UI.renderUserStats(this.userMember, config.coffee_price_per_cup, config.surcharge_percent);
+        app.innerHTML += UI.renderUserStats(this.userMember, config.coffee_price_per_cup, config.surcharge_percent);
 
         // Show a compact collective pot and recent group activity on main page
         try {
             const global = await databases.getDocument(DB_ID, COLL_GLOBAL, 'main');
             const groupLogs = await DB.getGroupLogs();
+            
+            // Add subtle descaling indicator
+            const descaleIndicator = UI.renderDescaleIndicator(descaleState.next_descale_person);
+            
             const potHtml = `
                 <div class="card group-pot-card">
+                    ${descaleIndicator}
                     <div class="group-pot">
                         <p>Collective Pot</p>
                         <h2>€${(global.group_funds || 0).toFixed(2)}</h2>
@@ -785,9 +796,10 @@ window.showAdminView = async () => {
         const members = await DB.getAllMembers();
         const global = await databases.getDocument(DB_ID, COLL_GLOBAL, 'main');
         const logs = await DB.getLogs();
+        const descaleState = await DB.getDescaleState();
 
         app.innerHTML = '';
-        app.innerHTML += UI.renderAdminPanel(members, global.group_funds || 0);
+        app.innerHTML += UI.renderAdminPanel(members, global.group_funds || 0, descaleState);
         app.innerHTML += UI.renderLogs(logs);
     } catch (e) {
         console.error('Failed to open admin view', e);
@@ -857,6 +869,161 @@ window.submitSurchargeConfig = async () => {
         alert('Error saving surcharge percent. Check console for details.');
         const saveBtn = document.querySelector('#surcharge-modal .btn-primary');
         saveBtn.innerText = 'Save';
+        saveBtn.disabled = false;
+    }
+};
+
+window.showDescalingModal = async (personId = null) => {
+    if (document.getElementById('descale-modal')) return;
+
+    const colors = window.getModalColors();
+    const coowners = await DB.getCoowners();
+    const descaleState = await DB.getDescaleState();
+    
+    // Default to next person unless overridden
+    const defaultPersonId = personId || descaleState.next_descale_person_id;
+    const defaultPerson = coowners.find(c => c.$id === defaultPersonId);
+    
+    const optionsHtml = coowners.map(co => 
+        `<option value="${co.$id}" ${co.$id === defaultPersonId ? 'selected' : ''}>${co.name}</option>`
+    ).join('');
+
+    const modalHtml = `
+        <div class="modal-overlay" id="descale-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;">
+            <div class="card modal" style="background:${colors.bg}; color:${colors.text}; padding:30px; border-radius:24px; max-width:450px; width:90%;">
+                <h3 style="margin-top:0; color:${colors.text}">🧪 Record Descaling</h3>
+                <p style="color:${colors.secondaryText}"><small>Record who descaled the coffee machine today.</small></p>
+                
+                <label style="display:block; font-weight:600; margin-bottom:8px; color:${colors.text};">Who descaled?</label>
+                <select id="descale-person" style="width:100%; padding:12px; margin:10px 0; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box; font-size:1rem;">
+                    ${optionsHtml}
+                </select>
+                
+                <div style="background:${colors.accentBg}; color:${colors.text}; padding:15px; border-radius:8px; margin:20px 0; font-size:0.9rem;">
+                    <p style="margin:0 0 8px 0;"><b>⏭️ Next person after this:</b></p>
+                    <p style="margin:0;" id="next-person-preview">${defaultPerson ? coowners[(coowners.indexOf(defaultPerson) + 1) % coowners.length].name : '?'}</p>
+                </div>
+                
+                <div style="display:flex; gap:10px;">
+                    <button onclick="window.submitDescaling()" class="btn-primary" style="flex:2">Save</button>
+                    <button onclick="document.getElementById('descale-modal').remove()" class="btn-cancel" style="flex:1">Cancel</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Update next person preview when selection changes
+    document.getElementById('descale-person').addEventListener('change', (e) => {
+        const selectedId = e.target.value;
+        const selectedIndex = coowners.findIndex(c => c.$id === selectedId);
+        const nextIndex = (selectedIndex + 1) % coowners.length;
+        document.getElementById('next-person-preview').textContent = coowners[nextIndex].name;
+    });
+};
+
+window.submitDescaling = async () => {
+    const personSelect = document.getElementById('descale-person');
+    const selectedId = personSelect.value;
+    const selectedName = personSelect.options[personSelect.selectedIndex].text;
+
+    if (!selectedId || !selectedName) {
+        alert("Please select a person.");
+        return;
+    }
+
+    try {
+        const saveBtn = document.querySelector('#descale-modal .btn-primary');
+        saveBtn.innerText = "Saving...";
+        saveBtn.disabled = true;
+
+        await DB.recordDescaling(selectedName, selectedId);
+        
+        alert("✓ Descaling recorded! Rotation advanced.");
+        location.reload();
+    } catch (e) {
+        console.error(e);
+        alert("Error saving descaling. Check console for details.");
+        const saveBtn = document.querySelector('#descale-modal .btn-primary');
+        saveBtn.innerText = "Save";
+        saveBtn.disabled = false;
+    }
+};
+
+window.toggleDescaleNotification = async (enable) => {
+    try {
+        await DB.toggleDescaleNotificationMode(enable);
+        console.log('Notification mode ' + (enable ? 'enabled' : 'disabled'));
+    } catch (e) {
+        console.error('Error toggling notification mode:', e);
+        alert('Error updating notification mode. Check console for details.');
+        // Revert the checkbox
+        document.getElementById('descale-notif-toggle').checked = !enable;
+    }
+};
+
+window.showSetNextDescalePersonModal = async () => {
+    if (document.getElementById('set-next-descale-modal')) return;
+
+    const colors = window.getModalColors();
+    const coowners = await DB.getCoowners();
+    const descaleState = await DB.getDescaleState();
+    
+    const optionsHtml = coowners.map(co => 
+        `<option value="${co.$id}" ${co.$id === descaleState.next_descale_person_id ? 'selected' : ''}>${co.name}</option>`
+    ).join('');
+
+    const modalHtml = `
+        <div class="modal-overlay" id="set-next-descale-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;">
+            <div class="card modal" style="background:${colors.bg}; color:${colors.text}; padding:30px; border-radius:24px; max-width:450px; width:90%;">
+                <h3 style="margin-top:0; color:${colors.text}">🧪 Set Next Descaler</h3>
+                <p style="color:${colors.secondaryText}"><small>Manually assign who should descale next. After they descale, the rotation will continue alphabetically.</small></p>
+                
+                <label style="display:block; font-weight:600; margin-bottom:8px; color:${colors.text};">Who should descale next?</label>
+                <select id="set-next-person" style="width:100%; padding:12px; margin:10px 0; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box; font-size:1rem;">
+                    ${optionsHtml}
+                </select>
+                
+                <div style="background:${colors.accentBg}; color:${colors.secondaryText}; padding:12px; border-radius:8px; margin:15px 0; font-size:0.85rem;">
+                    <p style="margin:0;">✓ After they descale, rotation will continue alphabetically from this person.</p>
+                </div>
+                
+                <div style="display:flex; gap:10px;">
+                    <button onclick="window.submitSetNextDescalePerson()" class="btn-primary" style="flex:2">Save</button>
+                    <button onclick="document.getElementById('set-next-descale-modal').remove()" class="btn-cancel" style="flex:1">Cancel</button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
+
+window.submitSetNextDescalePerson = async () => {
+    const personSelect = document.getElementById('set-next-person');
+    const selectedId = personSelect.value;
+    const selectedName = personSelect.options[personSelect.selectedIndex].text;
+
+    if (!selectedId || !selectedName) {
+        alert("Please select a person.");
+        return;
+    }
+
+    try {
+        const saveBtn = document.querySelector('#set-next-descale-modal .btn-primary');
+        saveBtn.innerText = "Saving...";
+        saveBtn.disabled = true;
+
+        await DB.setNextDescalePerson(selectedName, selectedId);
+        
+        alert("✓ Next descaler updated!");
+        document.getElementById('set-next-descale-modal').remove();
+        // Refresh admin view to show updated person
+        window.showAdminView();
+    } catch (e) {
+        console.error(e);
+        alert("Error updating next descaler. Check console for details.");
+        const saveBtn = document.querySelector('#set-next-descale-modal .btn-primary');
+        saveBtn.innerText = "Save";
         saveBtn.disabled = false;
     }
 };
