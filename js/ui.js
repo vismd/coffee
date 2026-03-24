@@ -166,23 +166,24 @@ UI.renderLogs = (logs) => {
     return `<div class="activity-feed"><h3>Recent Activity</h3>${items}</div>`;
 };
 
-UI.renderDescaleIndicator = (nextPerson) => {
-    if (!nextPerson) return '';
+UI.renderDescaleIndicator = (nextPerson, nextPersonId, currentUserId) => {
+    // Only show if current user is the next person to descale
+    if (!nextPerson || nextPersonId !== currentUserId) return '';
     return `
         <div style="padding: 8px 12px; background: rgba(162, 155, 254, 0.1); border-left: 3px solid #a29bfe; border-radius: 6px; font-size: 0.85rem; color: var(--text); margin-bottom: 12px;">
-            <span style="opacity: 0.7;">🧪 Next to descale: <b>${nextPerson}</b></span>
+            <span style="opacity: 0.7;">🧪 You are next to descale</span>
         </div>
     `;
 };
 
-UI.renderDescaleNotificationBanner = (nextPerson, nextPersonId) => {
-    if (!nextPerson) return '';
+UI.renderDescaleNotificationBanner = (nextPerson, nextPersonId, currentUserId) => {
+    // Only show if current user is the next person to descale
+    if (!nextPerson || nextPersonId !== currentUserId) return '';
     return `
         <div style="position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #a29bfe 0%, #74b9ff 100%); padding: 20px; text-align: center; z-index: 5000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); animation: slideDown 0.3s ease-out;">
             <div style="max-width: 900px; margin: 0 auto;">
                 <div style="font-size: 1.3rem; font-weight: 700; color: white; margin-bottom: 8px;">🧪 Time to Descale!</div>
-                <div style="font-size: 1rem; color: rgba(255,255,255,0.95); margin-bottom: 12px;"><b>${nextPerson}</b>, the coffee machine needs descaling.</div>
-                <button onclick="window.showDescalingModal('${nextPersonId}')" style="background: white; color: #a29bfe; border: none; padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.95rem;">Record Descaling</button>
+                <div style="font-size: 1rem; color: rgba(255,255,255,0.95);">It's your turn to descale the coffee machine.</div>
             </div>
         </div>
         <style>

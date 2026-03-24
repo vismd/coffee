@@ -257,9 +257,9 @@ const App = {
         const config = await DB.getGlobalConfig();
         const descaleState = await DB.getDescaleState();
         
-        // Show notification banner if notification mode is enabled
+        // Show notification banner if notification mode is enabled AND current user is next
         if (descaleState.descale_notification_mode && descaleState.next_descale_person) {
-            app.innerHTML = UI.renderDescaleNotificationBanner(descaleState.next_descale_person, descaleState.next_descale_person_id);
+            app.innerHTML = UI.renderDescaleNotificationBanner(descaleState.next_descale_person, descaleState.next_descale_person_id, this.userMember.$id);
         }
         
         // Render personal UI with dynamic price and surcharge percent
@@ -270,8 +270,8 @@ const App = {
             const global = await databases.getDocument(DB_ID, COLL_GLOBAL, 'main');
             const groupLogs = await DB.getGroupLogs();
             
-            // Add subtle descaling indicator
-            const descaleIndicator = UI.renderDescaleIndicator(descaleState.next_descale_person);
+            // Add subtle descaling indicator (only if current user is next)
+            const descaleIndicator = UI.renderDescaleIndicator(descaleState.next_descale_person, descaleState.next_descale_person_id, this.userMember.$id);
             
             const potHtml = `
                 <div class="card group-pot-card">
