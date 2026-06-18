@@ -474,6 +474,17 @@ body.dark-mode .metric-label {
     margin-bottom: 2rem;
 }
 
+.badges-heading {
+    margin: 0 0 15px;
+    color: var(--text);
+    font-size: 1.2rem;
+}
+
+.badges-container + .badges-heading,
+.badges-panel p + .badges-heading {
+    margin-top: 1.5rem;
+}
+
 .badges-container {
     display: flex;
     gap: 1rem;

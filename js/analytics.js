@@ -71,11 +71,24 @@ const Analytics = {
 
     async getAllLogs() {
         try {
-            const result = await databases.listDocuments(DB_ID, COLL_LOGS, [
-                Appwrite.Query.orderDesc('timestamp'),
-                Appwrite.Query.limit(100)
-            ]);
-            return result.documents;
+            const pageSize = 100;
+            let offset = 0;
+            let allDocuments = [];
+            let hasMore = true;
+
+            while (hasMore) {
+                const result = await databases.listDocuments(DB_ID, COLL_LOGS, [
+                    Appwrite.Query.orderDesc('timestamp'),
+                    Appwrite.Query.limit(pageSize),
+                    Appwrite.Query.offset(offset)
+                ]);
+
+                allDocuments = allDocuments.concat(result.documents);
+                hasMore = result.documents.length === pageSize;
+                offset += pageSize;
+            }
+
+            return allDocuments;
         } catch (error) {
             console.error("Error fetching all logs:", error);
             return [];
@@ -164,7 +177,7 @@ const Analytics = {
         `;
     },
 
-    renderBadges() {
+    renderWeeklyBadgesLegacy() {
         const container = document.getElementById('badgesPanel');
         if (!container) return;
 
@@ -259,6 +272,242 @@ const Analytics = {
         `;
 
         container.innerHTML = badgesHTML;
+    },
+
+    getFilteredCoffeeLogs(logs = this.allLogs) {
+        const coffeeLogs = logs
+            .filter(log => log.type === 'COFFEE' && log.userId && log.timestamp)
+            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+        const logsByUser = {};
+
+        coffeeLogs.forEach(log => {
+            if (!logsByUser[log.userId]) {
+                logsByUser[log.userId] = [];
+            }
+            logsByUser[log.userId].push(log);
+        });
+
+        return Object.values(logsByUser)
+            .flatMap(userLogs => {
+                const filteredLogs = [];
+                let index = 0;
+
+                while (index < userLogs.length) {
+                    const startTime = new Date(userLogs[index].timestamp).getTime();
+                    if (!Number.isFinite(startTime)) {
+                        index++;
+                        continue;
+                    }
+
+                    let endIndex = index + 1;
+                    while (
+                        endIndex < userLogs.length &&
+                        new Date(userLogs[endIndex].timestamp).getTime() - startTime <= 60 * 1000
+                    ) {
+                        endIndex++;
+                    }
+
+                    const burst = userLogs.slice(index, endIndex);
+                    if (burst.length > 3) {
+                        filteredLogs.push(burst[0]);
+                        index = endIndex;
+                    } else {
+                        filteredLogs.push(userLogs[index]);
+                        index++;
+                    }
+                }
+
+                return filteredLogs;
+            })
+            .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    },
+
+    getMemberName(userId) {
+        return this.allMembers.find(m => m.$id === userId)?.name || 'Unknown';
+    },
+
+    formatTimeOfDay(decimalHour) {
+        if (!Number.isFinite(decimalHour)) return '--:--';
+
+        const hour = Math.floor(decimalHour);
+        const minute = Math.round((decimalHour % 1) * 60);
+        return `${hour}:${minute.toString().padStart(2, '0')}`;
+    },
+
+    getTopUserByCount(logs) {
+        const userCounts = {};
+        logs.forEach(log => {
+            userCounts[log.userId] = (userCounts[log.userId] || 0) + 1;
+        });
+
+        const counts = Object.values(userCounts);
+        if (counts.length === 0) return null;
+
+        const maxCount = Math.max(...counts);
+        const userId = Object.keys(userCounts).find(id => userCounts[id] === maxCount);
+        return {
+            userId,
+            name: this.getMemberName(userId),
+            count: maxCount
+        };
+    },
+
+    getEarliestCoffee(logs) {
+        let earliestHour = Infinity;
+        let userId = null;
+
+        logs.forEach(log => {
+            const logDate = new Date(log.timestamp);
+            const hour = logDate.getHours() + logDate.getMinutes() / 60;
+            if (hour < earliestHour) {
+                earliestHour = hour;
+                userId = log.userId;
+            }
+        });
+
+        return userId ? {
+            userId,
+            name: this.getMemberName(userId),
+            time: this.formatTimeOfDay(earliestHour)
+        } : null;
+    },
+
+    getLatestCoffee(logs) {
+        let latestHour = -Infinity;
+        let userId = null;
+
+        logs.forEach(log => {
+            const logDate = new Date(log.timestamp);
+            const hour = logDate.getHours() + logDate.getMinutes() / 60;
+            if (hour > latestHour) {
+                latestHour = hour;
+                userId = log.userId;
+            }
+        });
+
+        return userId ? {
+            userId,
+            name: this.getMemberName(userId),
+            time: this.formatTimeOfDay(latestHour)
+        } : null;
+    },
+
+    getMostCoffeesInOneDay(logs) {
+        const countsByUserAndDay = {};
+
+        logs.forEach(log => {
+            const day = new Date(log.timestamp).toLocaleDateString('en-CA');
+            const key = `${log.userId}-${day}`;
+            if (!countsByUserAndDay[key]) {
+                countsByUserAndDay[key] = {
+                    userId: log.userId,
+                    day,
+                    count: 0
+                };
+            }
+            countsByUserAndDay[key].count++;
+        });
+
+        const topDay = Object.values(countsByUserAndDay)
+            .sort((a, b) => b.count - a.count)[0];
+
+        return topDay ? {
+            ...topDay,
+            name: this.getMemberName(topDay.userId)
+        } : null;
+    },
+
+    renderBadgeSection(title, badges) {
+        return `
+            <h3 class="badges-heading">${title}</h3>
+            <div class="badges-container">
+                ${badges.map(badge => `
+                    <div class="badge">
+                        <h3>${badge.title}</h3>
+                        <p>${badge.body}</p>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    },
+
+    renderBadges() {
+        const container = document.getElementById('badgesPanel');
+        if (!container) return;
+
+        const filteredCoffeeLogs = this.getFilteredCoffeeLogs();
+        const now = new Date();
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const recentLogs = filteredCoffeeLogs.filter(log => new Date(log.timestamp) > sevenDaysAgo);
+
+        if (filteredCoffeeLogs.length === 0) {
+            container.innerHTML = '<p>No coffee data yet.</p>';
+            return;
+        }
+
+        const sections = [];
+
+        if (recentLogs.length > 0) {
+            const weeklyChampion = this.getTopUserByCount(recentLogs);
+            const weeklyEarlyBird = this.getEarliestCoffee(recentLogs);
+            const weeklyNightOwl = this.getLatestCoffee(recentLogs);
+            const weekendChampion = this.getTopUserByCount(recentLogs.filter(log => {
+                const day = new Date(log.timestamp).getDay();
+                return day === 0 || day === 6;
+            }));
+
+            const weeklyBadges = [
+                {
+                    title: '&#127942; Coffee Champion',
+                    body: `${weeklyChampion.name}<br>${weeklyChampion.count} coffees`
+                },
+                {
+                    title: '&#128038; Early Bird',
+                    body: `${weeklyEarlyBird.name}<br>${weeklyEarlyBird.time}`
+                },
+                {
+                    title: '&#129417; Night Owl',
+                    body: `${weeklyNightOwl.name}<br>${weeklyNightOwl.time}`
+                }
+            ];
+
+            if (weekendChampion) {
+                weeklyBadges.push({
+                    title: '&#9876;&#65039; Weekend Warrior',
+                    body: `${weekendChampion.name}<br>${weekendChampion.count} weekend coffees`
+                });
+            }
+
+            sections.push(this.renderBadgeSection('&#127942; Weekly Champions (Last 7 Days)', weeklyBadges));
+        } else {
+            sections.push('<p>No coffee data for the past week.</p>');
+        }
+
+        const allTimeChampion = this.getTopUserByCount(filteredCoffeeLogs);
+        const allTimeEarlyBird = this.getEarliestCoffee(filteredCoffeeLogs);
+        const allTimeNightOwl = this.getLatestCoffee(filteredCoffeeLogs);
+        const allTimeBiggestDay = this.getMostCoffeesInOneDay(filteredCoffeeLogs);
+
+        sections.push(this.renderBadgeSection('&#127894;&#65039; All-Time Achievements', [
+            {
+                title: '&#127942; Coffee Champion',
+                body: `${allTimeChampion.name}<br>${allTimeChampion.count} coffees`
+            },
+            {
+                title: '&#128038; Early Bird',
+                body: `${allTimeEarlyBird.name}<br>${allTimeEarlyBird.time}`
+            },
+            {
+                title: '&#129417; Night Owl',
+                body: `${allTimeNightOwl.name}<br>${allTimeNightOwl.time}`
+            },
+            {
+                title: '&#9749; Mug Avalanche',
+                body: `${allTimeBiggestDay.name}<br>${allTimeBiggestDay.count} coffees in one day`
+            }
+        ]));
+
+        container.innerHTML = sections.join('');
     },
 
     getChartColors() {
