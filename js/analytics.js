@@ -1058,28 +1058,28 @@ const Analytics = {
                     background: transparent;
                     border: none;
                 }
-            </style>            <div class="modal-overlay" id="scatterplot-settings-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;">
-                <div class="card modal" style="background:${colors.bg}; color:${colors.text}; padding:30px; border-radius:24px; max-width:450px; width:90%;">
+            </style>            <div class="modal-overlay scatterplot-settings-overlay" id="scatterplot-settings-modal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999;">
+                <div class="card modal scatterplot-settings-card" style="background:${colors.bg}; color:${colors.text}; padding:30px; border-radius:24px; max-width:450px; width:90%;">
                     <h3 style="margin-top:0; color:${colors.text}">Scatterplot Settings</h3>
                     
-                    <div style="margin-bottom:20px;">
+                    <div class="scatterplot-user-section" style="margin-bottom:20px;">
                         <label style="display:block; margin-bottom:10px; font-weight:600; color:${colors.text};">Select Users to Display:</label>
-                        <div style="border-radius:8px; padding:10px; background:${colors.inputBg};">
+                        <div class="scatterplot-user-list" style="border-radius:8px; padding:10px; background:${colors.inputBg};">
                             ${userCheckboxes}
                         </div>
                     </div>
                     
-                    <div style="margin-bottom:20px;">
+                    <div class="scatterplot-range-section" style="margin-bottom:20px;">
                         <label style="display:block; margin-bottom:10px; font-weight:600; color:${colors.text};">Dot Size: <span id="dot-size-value">${this.scatterplotSettings.dotSize}</span></label>
                         <input type="range" id="dot-size-slider" min="1" max="15" value="${this.scatterplotSettings.dotSize}" style="width:100%;">
                     </div>
                     
-                    <div style="margin-bottom:20px;">
+                    <div class="scatterplot-range-section" style="margin-bottom:20px;">
                         <label style="display:block; margin-bottom:10px; font-weight:600; color:${colors.text};">Jitter: <span id="jitter-value">${this.scatterplotSettings.jitter}</span></label>
                         <input type="range" id="jitter-slider" min="0" max="1" step="0.1" value="${this.scatterplotSettings.jitter}" style="width:100%;">
                     </div>
                     
-                    <div style="display:flex; gap:10px;">
+                    <div class="scatterplot-modal-actions" style="display:flex; gap:10px;">
                         <button onclick="Analytics.applyScatterplotSettings()" class="btn-primary" style="flex:2">Apply</button>
                         <button onclick="document.getElementById('scatterplot-settings-modal').remove()" class="btn-cancel" style="flex:1">Cancel</button>
                     </div>
