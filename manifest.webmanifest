@@ -1,0 +1,27 @@
+{
+  "name": "Coffee Co-op",
+  "short_name": "Coffee",
+  "description": "Track coffee, balances, shared purchases, and co-op activity.",
+  "id": "./index.html",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f8f9fa",
+  "theme_color": "#2d3436",
+  "categories": ["productivity", "finance"],
+  "icons": [
+    {
+      "src": "icons/coffee-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/coffee-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -341,18 +341,63 @@ const DB = {
             await databases.updateDocument(DB_ID, COLL_MEMBERS, memberDoc.$id, updatedFields);
 
             // Log the coffee purchase (total amount charged)
-            await this.logAction('COFFEE', -totalPrice, memberDoc.$id, memberDoc.name);
+            const coffeeLog = await this.logAction('COFFEE', -totalPrice, memberDoc.$id, memberDoc.name);
 
             // If there was a surcharge, log it separately for clarity
+            let surchargeLog = null;
             if (surchargeAmt > 0) {
-                await this.logAction('SURCHARGE', +surchargeAmt, memberDoc.$id, memberDoc.name, `Surcharge ${config.surcharge_percent}% on €${price.toFixed(2)}`);
+                surchargeLog = await this.logAction('SURCHARGE', +surchargeAmt, memberDoc.$id, memberDoc.name, `Surcharge ${config.surcharge_percent}% on €${price.toFixed(2)}`);
             }
 
-            return true;
+            return {
+                memberId: memberDoc.$id,
+                expiresAt: Date.now() + 10000,
+                used: false,
+                previous: {
+                    balance: memberDoc.balance || 0,
+                    total_coffees: memberDoc.total_coffees || 0,
+                    ...((Object.prototype.hasOwnProperty.call(memberDoc, 'surcharge_total') || surchargeAmt > 0)
+                        ? { surcharge_total: prevSurcharge }
+                        : {})
+                },
+                expected: {
+                    balance: newBalance,
+                    total_coffees: newTotal,
+                    ...((Object.prototype.hasOwnProperty.call(memberDoc, 'surcharge_total') || surchargeAmt > 0)
+                        ? { surcharge_total: surchargeAmt > 0 ? +(prevSurcharge + surchargeAmt) : prevSurcharge }
+                        : {})
+                },
+                logIds: [coffeeLog?.$id, surchargeLog?.$id].filter(Boolean)
+            };
         } catch (error) {
             console.error("Error registering coffee:", error);
             throw error;
         }
+    },
+
+    async undoCoffeeRegistration(transaction) {
+        if (!transaction || transaction.used || Date.now() > transaction.expiresAt) {
+            throw new Error('This undo action has expired.');
+        }
+
+        const current = await databases.getDocument(DB_ID, COLL_MEMBERS, transaction.memberId);
+        const balanceMatches = Math.abs(Number(current.balance) - Number(transaction.expected.balance)) < 0.001;
+        const totalMatches = Number(current.total_coffees) === Number(transaction.expected.total_coffees);
+        const tracksSurcharge = Object.prototype.hasOwnProperty.call(transaction.expected, 'surcharge_total');
+        const surchargeMatches = !tracksSurcharge || Math.abs(Number(current.surcharge_total || 0) - Number(transaction.expected.surcharge_total || 0)) < 0.001;
+        if (!balanceMatches || !totalMatches || !surchargeMatches) {
+            throw new Error('The member balance changed after this coffee was registered.');
+        }
+
+        await databases.updateDocument(DB_ID, COLL_MEMBERS, transaction.memberId, transaction.previous);
+        try {
+            await Promise.all(transaction.logIds.map(logId => databases.deleteDocument(DB_ID, COLL_LOGS, logId)));
+        } catch (error) {
+            await databases.updateDocument(DB_ID, COLL_MEMBERS, transaction.memberId, transaction.expected).catch(() => {});
+            throw error;
+        }
+        transaction.used = true;
+        return true;
     },
 
     // Get all co-owners sorted alphabetically

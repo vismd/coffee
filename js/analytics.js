@@ -102,8 +102,319 @@ const Analytics = {
         this.renderGroupCoffeeChart();
         this.renderGroupPurchasesChart();
         this.renderCoffeeTimesChart();
+        this.renderCoffeeOrbit();
+        this.renderCoffeeConstellation();
         this.renderPurchaseBreakdownChart();
         this.renderActivityFeed();
+    },
+
+    getOrbitPoint(cx, cy, radius, angle) {
+        return {
+            x: cx + Math.cos(angle) * radius,
+            y: cy + Math.sin(angle) * radius
+        };
+    },
+
+    getOrbitArcPath(cx, cy, innerRadius, outerRadius, startAngle, endAngle) {
+        const innerStart = this.getOrbitPoint(cx, cy, innerRadius, startAngle);
+        const outerStart = this.getOrbitPoint(cx, cy, outerRadius, startAngle);
+        const outerEnd = this.getOrbitPoint(cx, cy, outerRadius, endAngle);
+        const innerEnd = this.getOrbitPoint(cx, cy, innerRadius, endAngle);
+        return [
+            `M ${innerStart.x.toFixed(2)} ${innerStart.y.toFixed(2)}`,
+            `L ${outerStart.x.toFixed(2)} ${outerStart.y.toFixed(2)}`,
+            `A ${outerRadius} ${outerRadius} 0 0 1 ${outerEnd.x.toFixed(2)} ${outerEnd.y.toFixed(2)}`,
+            `L ${innerEnd.x.toFixed(2)} ${innerEnd.y.toFixed(2)}`,
+            `A ${innerRadius} ${innerRadius} 0 0 0 ${innerStart.x.toFixed(2)} ${innerStart.y.toFixed(2)}`,
+            'Z'
+        ].join(' ');
+    },
+
+    getOrbitColor(count, maximum) {
+        if (!count || !maximum) return '';
+        const strength = Math.max(0.18, count / maximum);
+        const low = [73, 126, 167];
+        const high = [255, 116, 81];
+        const mix = value => Math.round(low[value] + (high[value] - low[value]) * strength);
+        return `rgb(${mix(0)}, ${mix(1)}, ${mix(2)})`;
+    },
+
+    renderCoffeeOrbit() {
+        const container = document.getElementById('coffeeOrbit');
+        if (!container) return;
+
+        const now = Date.now();
+        const cutoff = now - 12 * 7 * 24 * 60 * 60 * 1000;
+        const coffeeLogs = this.getFilteredCoffeeLogs().filter(log => {
+            const time = new Date(log.timestamp).getTime();
+            return Number.isFinite(time) && time >= cutoff && time <= now;
+        });
+
+        if (coffeeLogs.length === 0) {
+            container.innerHTML = '<p class="orbit-empty">Not enough recent coffee data to draw the orbit yet.</p>';
+            return;
+        }
+
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const shortDays = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+        const counts = Array.from({ length: 7 }, () => Array(24).fill(0));
+        coffeeLogs.forEach(log => {
+            const date = new Date(log.timestamp);
+            const dayIndex = (date.getDay() + 6) % 7;
+            counts[dayIndex][date.getHours()]++;
+        });
+
+        const cells = counts.flatMap((hours, day) => hours.map((count, hour) => ({ day, hour, count })));
+        const maximum = Math.max(...cells.map(cell => cell.count));
+        const peak = cells.reduce((best, cell) => cell.count > best.count ? cell : best, cells[0]);
+        const cx = 180;
+        const cy = 180;
+        const innerBase = 48;
+        const ringStep = 16;
+        const ringWidth = 13;
+        const hourAngle = (Math.PI * 2) / 24;
+        const angleGap = 0.012;
+
+        const paths = cells.map(cell => {
+            const innerRadius = innerBase + cell.day * ringStep;
+            const outerRadius = innerRadius + ringWidth;
+            const startAngle = -Math.PI / 2 + cell.hour * hourAngle + angleGap;
+            const endAngle = -Math.PI / 2 + (cell.hour + 1) * hourAngle - angleGap;
+            const path = this.getOrbitArcPath(cx, cy, innerRadius, outerRadius, startAngle, endAngle);
+            const label = `${days[cell.day]} ${cell.hour.toString().padStart(2, '0')}:00–${((cell.hour + 1) % 24).toString().padStart(2, '0')}:00: ${cell.count} ${cell.count === 1 ? 'coffee' : 'coffees'}`;
+            const color = this.getOrbitColor(cell.count, maximum);
+            return `<path class="orbit-cell${cell.count ? '' : ' orbit-cell-empty'}" d="${path}" ${color ? `style="fill:${color}"` : ''} data-day="${cell.day}" data-hour="${cell.hour}" data-count="${cell.count}" tabindex="0" role="button" aria-label="${label}"><title>${label}</title></path>`;
+        }).join('');
+
+        const timeLabels = [
+            { x: 180, y: 13, anchor: 'middle', text: '00' },
+            { x: 347, y: 184, anchor: 'end', text: '06' },
+            { x: 180, y: 354, anchor: 'middle', text: '12' },
+            { x: 13, y: 184, anchor: 'start', text: '18' }
+        ].map(label => `<text class="orbit-time-label" x="${label.x}" y="${label.y}" text-anchor="${label.anchor}">${label.text}</text>`).join('');
+
+        container.innerHTML = `
+            <svg class="coffee-orbit-svg" viewBox="0 0 360 360" role="img" aria-labelledby="coffee-orbit-title coffee-orbit-description">
+                <title id="coffee-orbit-title">Group coffee orbit for the last 12 weeks</title>
+                <desc id="coffee-orbit-description">Seven rings represent Monday through Sunday. Each ring contains 24 hourly segments colored by coffee count.</desc>
+                ${paths}
+                ${timeLabels}
+                <text class="orbit-center-value" x="180" y="174" text-anchor="middle">${coffeeLogs.length}</text>
+                <text class="orbit-center-label" x="180" y="193" text-anchor="middle">coffees</text>
+            </svg>
+            <div class="orbit-day-key" aria-label="Ring order from center outward">
+                ${shortDays.map((day, index) => `<span title="${days[index]}"><b>${day}</b><small>${index + 1}</small></span>`).join('')}
+            </div>
+            <div class="orbit-intensity" aria-label="Color intensity scale"><span>Quiet</span><i></i><span>Buzzing</span></div>
+            <p id="orbitDetail" class="orbit-detail" aria-live="polite">Peak: ${days[peak.day]} at ${peak.hour.toString().padStart(2, '0')}:00 · ${peak.count} ${peak.count === 1 ? 'coffee' : 'coffees'}</p>`;
+
+        const detail = container.querySelector('#orbitDetail');
+        const selectCell = cell => {
+            container.querySelector('.orbit-cell.is-selected')?.classList.remove('is-selected');
+            cell.classList.add('is-selected');
+            const day = Number(cell.dataset.day);
+            const hour = Number(cell.dataset.hour);
+            const count = Number(cell.dataset.count);
+            detail.textContent = `${days[day]}, ${hour.toString().padStart(2, '0')}:00–${((hour + 1) % 24).toString().padStart(2, '0')}:00 · ${count} ${count === 1 ? 'coffee' : 'coffees'} in 12 weeks`;
+        };
+
+        container.querySelectorAll('.orbit-cell').forEach(cell => {
+            cell.addEventListener('click', () => selectCell(cell));
+            cell.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    selectCell(cell);
+                }
+            });
+        });
+    },
+
+    escapeAnalyticsText(value) {
+        return String(value ?? '')
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#039;');
+    },
+
+    getCoffeeConstellationData() {
+        const now = Date.now();
+        const cutoff = now - 12 * 7 * 24 * 60 * 60 * 1000;
+        const logs = this.getFilteredCoffeeLogs()
+            .filter(log => {
+                const time = new Date(log.timestamp).getTime();
+                return log.userId && Number.isFinite(time) && time >= cutoff && time <= now;
+            })
+            .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+        const membersById = new Map(this.allMembers.map(member => [member.$id, member]));
+        const nodeMap = new Map();
+        logs.forEach(log => {
+            if (!nodeMap.has(log.userId)) {
+                nodeMap.set(log.userId, {
+                    id: log.userId,
+                    name: membersById.get(log.userId)?.name || log.userName || 'Unknown',
+                    count: 0
+                });
+            }
+            nodeMap.get(log.userId).count++;
+        });
+
+        const pairMap = new Map();
+        const proximityMs = 30 * 60 * 1000;
+        for (let left = 0; left < logs.length; left++) {
+            const leftTime = new Date(logs[left].timestamp).getTime();
+            for (let right = left + 1; right < logs.length; right++) {
+                const rightTime = new Date(logs[right].timestamp).getTime();
+                if (rightTime - leftTime > proximityMs) break;
+                if (logs[left].userId === logs[right].userId) continue;
+                const pair = [logs[left].userId, logs[right].userId].sort();
+                const key = pair.join('::');
+                if (!pairMap.has(key)) pairMap.set(key, { key, source: pair[0], target: pair[1], count: 0 });
+                pairMap.get(key).count++;
+            }
+        }
+
+        return {
+            logs,
+            nodes: [...nodeMap.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+            edges: [...pairMap.values()].sort((a, b) => b.count - a.count)
+        };
+    },
+
+    renderCoffeeConstellation() {
+        const container = document.getElementById('coffeeConstellation');
+        if (!container) return;
+
+        const { logs, nodes, edges } = this.getCoffeeConstellationData();
+        if (nodes.length === 0) {
+            container.innerHTML = '<p class="constellation-empty">The coffee universe is still waiting for its first recent star.</p>';
+            return;
+        }
+
+        const cx = 180;
+        const cy = 180;
+        const orbitRadius = nodes.length === 1 ? 104 : 128;
+        const maxCoffeeCount = Math.max(...nodes.map(node => node.count), 1);
+        const maxEdgeCount = Math.max(...edges.map(edge => edge.count), 1);
+        const palette = ['#ff7451', '#5aa9e6', '#ffd166', '#7bd389', '#b892ff', '#ff9f1c', '#4ecdc4', '#f78fb3'];
+        const positions = new Map(nodes.map((node, index) => {
+            const angle = -Math.PI / 2 + index * (Math.PI * 2 / Math.max(nodes.length, 1));
+            return [node.id, {
+                x: cx + Math.cos(angle) * orbitRadius,
+                y: cy + Math.sin(angle) * orbitRadius
+            }];
+        }));
+
+        const decorativeStars = Array.from({ length: 34 }, (_, index) => {
+            const x = 12 + (index * 83) % 336;
+            const y = 12 + (index * 137) % 336;
+            const radius = 0.7 + (index % 3) * 0.45;
+            return `<circle class="constellation-dust constellation-dust-${index % 4}" cx="${x}" cy="${y}" r="${radius.toFixed(2)}"></circle>`;
+        }).join('');
+
+        const edgeMarkup = edges.map(edge => {
+            const source = positions.get(edge.source);
+            const target = positions.get(edge.target);
+            if (!source || !target) return '';
+            const strength = edge.count / maxEdgeCount;
+            const width = (1 + strength * 5).toFixed(2);
+            const opacity = (0.18 + strength * 0.62).toFixed(2);
+            const sourceName = nodes.find(node => node.id === edge.source)?.name || 'Unknown';
+            const targetName = nodes.find(node => node.id === edge.target)?.name || 'Unknown';
+            const label = `${sourceName} and ${targetName}: ${edge.count} nearby coffee ${edge.count === 1 ? 'moment' : 'moments'}`;
+            const safeLabel = this.escapeAnalyticsText(label);
+            return `
+                <line class="constellation-beam" data-edge-key="${edge.key}" x1="${source.x.toFixed(2)}" y1="${source.y.toFixed(2)}" x2="${target.x.toFixed(2)}" y2="${target.y.toFixed(2)}" style="stroke-width:${width};opacity:${opacity}"></line>
+                <line class="constellation-beam-hit" data-edge-key="${edge.key}" data-source="${edge.source}" data-target="${edge.target}" data-count="${edge.count}" x1="${source.x.toFixed(2)}" y1="${source.y.toFixed(2)}" x2="${target.x.toFixed(2)}" y2="${target.y.toFixed(2)}" tabindex="0" role="button" aria-label="${safeLabel}"><title>${safeLabel}</title></line>`;
+        }).join('');
+
+        const nodeMarkup = nodes.map((node, index) => {
+            const position = positions.get(node.id);
+            const radius = 11 + (node.count / maxCoffeeCount) * 10;
+            const name = String(node.name || 'Unknown');
+            const displayName = name.length > 10 ? `${name.slice(0, 9)}…` : name;
+            const safeName = this.escapeAnalyticsText(name);
+            const safeDisplayName = this.escapeAnalyticsText(displayName);
+            const safeInitial = this.escapeAnalyticsText(name.trim().charAt(0).toUpperCase() || '?');
+            return `
+                <g class="constellation-node" data-user-id="${node.id}" data-count="${node.count}" tabindex="0" role="button" aria-label="${safeName}: ${node.count} coffees in 12 weeks" transform="translate(${position.x.toFixed(2)} ${position.y.toFixed(2)})">
+                    <circle class="constellation-star-glow" r="${(radius + 6).toFixed(2)}"></circle>
+                    <circle class="constellation-star" r="${radius.toFixed(2)}" style="fill:${palette[index % palette.length]}"></circle>
+                    <text class="constellation-initial" text-anchor="middle" y="4">${safeInitial}</text>
+                    <text class="constellation-name" text-anchor="middle" y="${(radius + 15).toFixed(2)}">${safeDisplayName}</text>
+                </g>`;
+        }).join('');
+
+        const strongest = edges[0];
+        const initialDetail = strongest
+            ? `${nodes.find(node => node.id === strongest.source)?.name} + ${nodes.find(node => node.id === strongest.target)?.name} lead with ${strongest.count} nearby coffee ${strongest.count === 1 ? 'moment' : 'moments'}.`
+            : `${nodes[0].name} is currently exploring this coffee universe solo.`;
+
+        container.innerHTML = `
+            <svg class="coffee-constellation-svg" viewBox="0 0 360 360" role="img" aria-labelledby="constellation-title constellation-description">
+                <title id="constellation-title">Coffee buddy constellation for the last 12 weeks</title>
+                <desc id="constellation-description">Member stars are sized by coffee count. Beams connect different members who registered coffees within 30 minutes.</desc>
+                <circle class="constellation-sky" cx="180" cy="180" r="168"></circle>
+                ${decorativeStars}
+                ${edgeMarkup}
+                <circle class="constellation-sun-glow" cx="180" cy="180" r="31"></circle>
+                <circle class="constellation-sun" cx="180" cy="180" r="23"></circle>
+                <text class="constellation-sun-icon" x="180" y="188" text-anchor="middle">☕</text>
+                ${nodeMarkup}
+            </svg>
+            <p class="constellation-legend">Star size = coffees · Beam glow = nearby coffee moments</p>
+            <p id="constellationDetail" class="constellation-detail" aria-live="polite">${this.escapeAnalyticsText(initialDetail)}</p>
+            <p class="constellation-footnote">Based on ${logs.length} coffees from the last 12 weeks. Temporal proximity is just for fun—not proof anyone drank together.</p>`;
+
+        const detail = container.querySelector('#constellationDetail');
+        const clearSelection = () => {
+            container.querySelectorAll('.is-selected, .is-related').forEach(element => element.classList.remove('is-selected', 'is-related'));
+        };
+
+        const selectNode = element => {
+            clearSelection();
+            element.classList.add('is-selected');
+            const userId = element.dataset.userId;
+            const node = nodes.find(item => item.id === userId);
+            const connections = edges.filter(edge => edge.source === userId || edge.target === userId);
+            connections.forEach(edge => {
+                container.querySelectorAll(`[data-edge-key="${edge.key}"]`).forEach(line => line.classList.add('is-related'));
+            });
+            const buddyEdge = connections[0];
+            if (!buddyEdge) {
+                detail.textContent = `${node.name}: ${node.count} coffees and currently flying solo.`;
+                return;
+            }
+            const buddyId = buddyEdge.source === userId ? buddyEdge.target : buddyEdge.source;
+            const buddy = nodes.find(item => item.id === buddyId);
+            detail.textContent = `${node.name}: ${node.count} coffees · strongest cosmic pull: ${buddy.name} (${buddyEdge.count} nearby ${buddyEdge.count === 1 ? 'moment' : 'moments'})`;
+        };
+
+        const selectEdge = element => {
+            clearSelection();
+            const key = element.dataset.edgeKey;
+            container.querySelectorAll(`[data-edge-key="${key}"]`).forEach(line => line.classList.add('is-selected'));
+            const source = nodes.find(node => node.id === element.dataset.source);
+            const target = nodes.find(node => node.id === element.dataset.target);
+            const count = Number(element.dataset.count);
+            detail.textContent = `${source.name} + ${target.name}: ${count} coffee ${count === 1 ? 'moment landed' : 'moments landed'} within 30 minutes.`;
+        };
+
+        const bindActivation = (selector, callback) => {
+            container.querySelectorAll(selector).forEach(element => {
+                element.addEventListener('click', () => callback(element));
+                element.addEventListener('keydown', event => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        callback(element);
+                    }
+                });
+            });
+        };
+        bindActivation('.constellation-node', selectNode);
+        bindActivation('.constellation-beam-hit', selectEdge);
     },
 
     renderMetricsPanel() {

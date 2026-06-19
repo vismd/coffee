@@ -1,5 +1,7 @@
 const App = {
     userMember: null, // This acts as our "Global State"
+    sessionUserId: null,
+    currentView: 'dashboard',
 
     async init() {
         try {
@@ -65,6 +67,7 @@ const App = {
 
             // 1. Get/Create Session
             const sessionUser = await Auth.initSession();
+            this.sessionUserId = sessionUser.$id;
 
             // 2a. If we have a server-backed claim_token, exchange it for a JWT via Cloud Function
             if (claimToken) {
@@ -142,7 +145,7 @@ const App = {
                                 parsed = JSON.parse(rawResponse);
                             } catch (parseErr) {
                                 console.error('Failed to parse claim function raw response:', rawResponse, parseErr, 'Full execution:', check);
-                                alert('Claim exchange failed: invalid function response. See console for details.');
+                                MobileUI.toast('The account link returned an invalid response.', { type: 'error' });
                             }
                         } else {
                             console.warn('Claim execution completed with no response object', check);
@@ -158,7 +161,7 @@ const App = {
                             } catch (dbCheckErr) {
                                 console.debug('DB check after claim execution failed', dbCheckErr);
                             }
-                            alert('Claim exchange failed: no response from function. Check function logs.');
+                            MobileUI.toast('The account link did not return a response.', { type: 'error' });
                         }
 
                         if (parsed) {
@@ -195,23 +198,23 @@ const App = {
                                     localStorage.setItem('LINKED_SESSION_SECRET', jwt.sessionSecret);
                                 }
                                 
-                                alert('✓ Device successfully linked to member! Click OK to reload.');
-                                await new Promise(r => setTimeout(r, 200));
+                                MobileUI.toast('Device linked successfully.', { type: 'success' });
+                                await new Promise(r => setTimeout(r, 800));
                                 window.location.href = window.location.pathname;
                                 return;
                             }
 
                             console.warn('Claim exchange completed but no jwt returned:', parsed);
-                            alert('Claim exchange failed: ' + (parsed?.error || 'no jwt returned'));
+                            MobileUI.toast('Account link failed: ' + (parsed?.error || 'no session returned'), { type: 'error' });
                         }
                     } else {
                         console.error('Claim execution did not complete in time:', check);
                         // Show execution id so user can inspect Appwrite logs
-                        alert('Claim exchange timed out or failed. Execution id: ' + (exec.$id || 'unknown') + '. Check function logs for details.');
+                        MobileUI.toast('Account linking timed out. Please try again.', { type: 'error' });
                     }
                 } catch (e) {
                     console.error('Claim exchange error:', e);
-                    alert('Claim exchange failed. See console for details.');
+                    MobileUI.toast('Account linking failed. Please try again.', { type: 'error' });
                 }
             }
 
@@ -252,6 +255,8 @@ const App = {
 
     async renderDashboard() {
         const app = document.getElementById('app');
+        this.currentView = 'dashboard';
+        app.innerHTML = '';
         
         // Get dynamic coffee price and descaling state
         const config = await DB.getGlobalConfig();
@@ -268,7 +273,6 @@ const App = {
         // Show a compact collective pot and recent group activity on main page
         try {
             const global = await databases.getDocument(DB_ID, COLL_GLOBAL, 'main');
-            const groupLogs = await DB.getGroupLogs();
             
             // Add subtle descaling indicator (only if current user is next)
             const descaleIndicator = UI.renderDescaleIndicator(descaleState.next_descale_person, descaleState.next_descale_person_id, this.userMember.$id);
@@ -301,13 +305,30 @@ const App = {
 
         // Add recent activity feed at the bottom
         try {
-            const groupLogs = await DB.getGroupLogs();
-            const activityHtml = UI.renderLogs(groupLogs);
+            const recentLogs = await DB.getLogs();
+            const activityHtml = UI.renderLogs(recentLogs);
             const activityDiv = document.createElement('div');
             activityDiv.innerHTML = activityHtml;
             app.appendChild(activityDiv);
         } catch (e) {
             console.warn('Failed to render activity feed on main page', e);
+        }
+    },
+
+    async refreshCurrentView() {
+        try {
+            if (this.sessionUserId) {
+                const freshMember = await DB.getMemberByUid(this.sessionUserId);
+                if (freshMember) this.userMember = freshMember;
+            }
+            if (this.currentView === 'admin') {
+                await window.showAdminView();
+            } else {
+                await this.renderDashboard();
+            }
+        } catch (error) {
+            console.error('In-place refresh failed', error);
+            MobileUI.toast('Saved, but the screen could not refresh. Pull down to reload.', { type: 'error' });
         }
     }
 };
@@ -332,7 +353,7 @@ window.getModalColors = () => {
 window.handleCoffee = async () => {
     // Check the App object for the member we found during init
     if (!App.userMember) {
-        alert("User data not loaded. Please refresh.");
+        MobileUI.toast('Your member data is not ready. Please refresh.', { type: 'error' });
         return;
     }
 
@@ -348,7 +369,7 @@ window.handleCoffee = async () => {
 
         const total = +(price + surchargeAmt);
 
-        // Show in-page confirmation modal instead of browser confirm()
+        // Show an in-page confirmation sheet instead of a blocking browser dialog.
         if (document.getElementById('coffee-confirm-modal')) return;
         const colors = window.getModalColors();
         const modalHtml = `
@@ -390,18 +411,33 @@ window.handleCoffee = async () => {
                 const btn = ev.currentTarget;
                 btn.disabled = true;
                 btn.innerText = 'Processing...';
-                await DB.registerCoffeeWithDynamicPrice(App.userMember);
-                // small delay for UX
-                setTimeout(() => location.reload(), 200);
+                const transaction = await DB.registerCoffeeWithDynamicPrice(App.userMember);
+                document.getElementById('coffee-confirm-modal')?.remove();
+                await App.refreshCurrentView();
+                MobileUI.toast('Coffee registered.', {
+                    type: 'success',
+                    duration: 8000,
+                    actionLabel: 'Undo',
+                    onAction: async () => {
+                        try {
+                            await DB.undoCoffeeRegistration(transaction);
+                            await App.refreshCurrentView();
+                            MobileUI.toast('Coffee registration undone.', { type: 'success' });
+                        } catch (error) {
+                            console.error('Coffee undo failed', error);
+                            MobileUI.toast(error.message || 'Could not undo this coffee.', { type: 'error' });
+                        }
+                    }
+                });
             } catch (err) {
                 console.error('Coffee purchase failed', err);
-                alert('Transaction failed. Check console for details.');
+                MobileUI.toast('Could not register coffee. Please try again.', { type: 'error' });
                 const btn = document.getElementById('coffee-confirm-confirm');
                 if (btn) { btn.disabled = false; btn.innerText = 'Confirm'; }
             }
         });
     } catch (e) {
-        alert("Transaction failed. Check Appwrite permissions.");
+        MobileUI.toast('Could not register coffee. Check your connection and permissions.', { type: 'error' });
     }
 };
 
@@ -470,13 +506,15 @@ window.showClaimQR = async (memberId) => {
             document.getElementById('claim-copy-btn').addEventListener('click', async () => {
                 try {
                     await navigator.clipboard.writeText(claimUrl);
+                    MobileUI.toast('Sharing link copied.', { type: 'success' });
                 } catch (err) {
                     // Fallback for older browsers
                     try {
                         linkInput.select();
                         document.execCommand('copy');
+                        MobileUI.toast('Sharing link copied.', { type: 'success' });
                     } catch (e) {
-                        alert('Copy failed; select and copy manually');
+                        MobileUI.toast('Copy failed. Select and copy the link manually.', { type: 'error' });
                     }
                 }
             });
@@ -485,29 +523,66 @@ window.showClaimQR = async (memberId) => {
         }
     } catch (e) {
         console.error('Error creating claim token or fetching member:', e);
-        alert('Could not create claim QR. See console for details.');
+        MobileUI.toast('Could not create the sharing code. Please try again.', { type: 'error' });
     }
 };
 
 window.showAddFunds = async (memberId) => {
-    const amount = prompt("Enter amount to add to this tab (€):", "10.00");
-    const msg = prompt("Note (e.g., 'Cash' or 'PayPal'):", "Cash payment");
-    
-    if (amount && !isNaN(amount) && parseFloat(amount) > 0) {
-        try {
-            // 1. Get the member document first
-            const member = await databases.getDocument(DB_ID, COLL_MEMBERS, memberId);
-            
-            // 2. Run the DB logic
-            await DB.addFunds(member, parseFloat(amount), msg);
-            
-            alert(`Successfully added €${amount} to ${member.name}'s account.`);
-            location.reload(); 
-        } catch (error) {
-            console.error(error);
-            alert("Error adding funds. Check your Admin permissions.");
+    const member = await databases.getDocument(DB_ID, COLL_MEMBERS, memberId).catch(error => {
+        console.error(error);
+        MobileUI.toast('Could not load this member. Please try again.', { type: 'error' });
+        return null;
+    });
+    if (!member) return;
+
+    MobileUI.openForm({
+        id: 'add-funds-modal',
+        title: `Add funds for ${member.name}`,
+        description: 'Record a cash or digital payment on this member tab.',
+        submitLabel: 'Add funds',
+        content: `
+            <div class="form-field">
+                <label for="add-funds-amount">Amount</label>
+                <input id="add-funds-amount" name="amount" type="number" inputmode="decimal" min="0.01" step="0.01" value="10.00" required>
+            </div>
+            <div class="form-field">
+                <label for="add-funds-note">Payment note</label>
+                <input id="add-funds-note" name="note" type="text" value="Paypal Pool" maxlength="120" required>
+                <div class="quick-select" aria-label="Quick payment-note choices">
+                    <button type="button" data-note-value="Cash">Cash</button>
+                    <button type="button" data-note-value="Paypal Pool">Paypal Pool</button>
+                </div>
+            </div>`,
+        onSubmit: async ({ form, submitButton, close }) => {
+            const amountInput = form.elements.amount;
+            const noteInput = form.elements.note;
+            const amount = Number.parseFloat(amountInput.value);
+            const note = noteInput.value.trim();
+            if (!Number.isFinite(amount) || amount <= 0) return MobileUI.showError(amountInput, 'Enter an amount greater than zero.');
+            if (!note) return MobileUI.showError(noteInput, 'Add a short payment note.');
+
+            MobileUI.setBusy(submitButton, true, 'Adding...');
+            try {
+                await DB.addFunds(member, amount, note);
+                close();
+                MobileUI.toast(`Added €${amount.toFixed(2)} to ${member.name}.`, { type: 'success' });
+                await App.refreshCurrentView();
+            } catch (error) {
+                console.error(error);
+                MobileUI.setBusy(submitButton, false);
+                MobileUI.toast('Could not add funds. Check your permissions and connection.', { type: 'error' });
+            }
         }
-    }
+    });
+
+    const noteInput = document.getElementById('add-funds-note');
+    document.querySelectorAll('#add-funds-modal [data-note-value]').forEach(button => {
+        button.addEventListener('click', () => {
+            noteInput.value = button.dataset.noteValue;
+            noteInput.dispatchEvent(new Event('input', { bubbles: true }));
+            noteInput.focus();
+        });
+    });
 };
 
 window.viewExpenseImage = async (fileId) => {
@@ -553,7 +628,7 @@ window.viewExpenseImage = async (fileId) => {
         document.body.appendChild(modal);
     } catch (error) {
         console.error("Error viewing image:", error);
-        alert("Could not load image. Please try again.");
+        MobileUI.toast('Could not load the receipt image.', { type: 'error' });
     }
 };
 
@@ -568,8 +643,8 @@ window.showExpenseModal = () => {
                 <h3 style="margin-top:0; color:${colors.text}">Group Purchase</h3>
                 <p style="color:${colors.secondaryText}"><small>Cost for beans, milk, or snacks.</small></p>
                 
-                <input type="number" id="exp-amount" placeholder="Amount (€)" step="0.01" style="width:100%; padding:12px; margin:10px 0; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box;">
-                <input type="text" id="exp-msg" placeholder="Item (e.g. 1kg Espresso)" style="width:100%; padding:12px; margin:10px 0; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box;">
+                <div class="form-field"><label for="exp-amount">Amount</label><input type="number" id="exp-amount" inputmode="decimal" placeholder="0.00" min="0.01" step="0.01"></div>
+                <div class="form-field"><label for="exp-msg">Item</label><input type="text" id="exp-msg" placeholder="e.g. 1kg Espresso" maxlength="120"></div>
                 <label style="display:block; margin-top:10px; font-size:0.8rem; color:${colors.secondaryText};">Optional: Receipt Photo</label>
                 <input type="file" id="exp-file" accept="image/*" style="width:100%; margin-bottom:20px; color:${colors.inputText};">
                 
@@ -609,28 +684,25 @@ window.submitExpense = async () => {
     const msg = msgInput.value;
     const file = fileInput.files[0];
 
-    if (!amount || amount <= 0) {
-        alert("Please enter a valid amount.");
-        return;
-    }
+    if (!amount || amount <= 0) return MobileUI.showError(amountInput, 'Enter an amount greater than zero.');
+    if (!msg.trim()) return MobileUI.showError(msgInput, 'Describe what was purchased.');
 
     try {
         // Disable button to prevent double-submitting
         const saveBtn = document.querySelector('#expense-modal .btn-primary');
-        saveBtn.innerText = "Saving...";
-        saveBtn.disabled = true;
+        MobileUI.setBusy(saveBtn, true);
 
         await DB.recordExpense(amount, msg, file, distributionMethod);
         
-        alert("Expense recorded!");
-        location.reload();
+        document.getElementById('expense-modal').remove();
+        MobileUI.toast('Expense recorded.', { type: 'success' });
+        await App.refreshCurrentView();
     } catch (e) {
         console.error(e);
-        alert("Error saving expense. Check console for details.");
+        MobileUI.toast('Could not save the expense. Please try again.', { type: 'error' });
         // Re-enable button on error
         const saveBtn = document.querySelector('#expense-modal .btn-primary');
-        saveBtn.innerText = "Save";
-        saveBtn.disabled = false;
+        MobileUI.setBusy(saveBtn, false);
     }
 };
 
@@ -644,8 +716,8 @@ window.showCoffeeBeanModal = () => {
                 <h3 style="margin-top:0; color:${colors.text}">🫘 Buy Coffee Beans</h3>
                 <p style="color:${colors.secondaryText}"><small>Record a coffee bean purchase and update the price per cup.</small></p>
                 
-                <input type="number" id="bean-amount" placeholder="Cost (€)" step="0.01" style="width:100%; padding:12px; margin:10px 0; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box;">
-                <input type="number" id="bean-grams" placeholder="Weight (grams)" step="1" style="width:100%; padding:12px; margin:10px 0; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box;">
+                <div class="form-field"><label for="bean-amount">Cost</label><input type="number" id="bean-amount" inputmode="decimal" placeholder="0.00" min="0.01" step="0.01"></div>
+                <div class="form-field"><label for="bean-grams">Weight in grams</label><input type="number" id="bean-grams" inputmode="numeric" placeholder="1000" min="1" step="1"></div>
                 <div style="background:${colors.accentBg}; color:${colors.text}; padding:15px; border-radius:8px; margin:15px 0; font-size:0.9rem;">
                     <p style="margin:0 0 8px 0;"><b>Calculation:</b></p>
                     <p style="margin:0;">Price/kg: <span id="price-per-kg">€0.00</span></p>
@@ -695,26 +767,23 @@ window.submitCoffeeBeans = async () => {
     const grams = parseFloat(gramsInput.value);
     const file = fileInput.files[0];
 
-    if (!amount || amount <= 0 || !grams || grams <= 0) {
-        alert("Please enter valid amount and weight.");
-        return;
-    }
+    if (!amount || amount <= 0) return MobileUI.showError(amountInput, 'Enter a cost greater than zero.');
+    if (!grams || grams <= 0) return MobileUI.showError(gramsInput, 'Enter a weight greater than zero.');
 
     try {
         const saveBtn = document.querySelector('#bean-modal .btn-primary');
-        saveBtn.innerText = "Saving...";
-        saveBtn.disabled = true;
+        MobileUI.setBusy(saveBtn, true);
 
         await DB.recordCoffeeBeanPurchase(amount, grams, file);
         
-        alert("Coffee beans purchased! Price per cup updated.");
-        location.reload();
+        document.getElementById('bean-modal').remove();
+        MobileUI.toast('Coffee beans recorded and cup price updated.', { type: 'success' });
+        await App.refreshCurrentView();
     } catch (e) {
         console.error(e);
-        alert("Error saving purchase. Check console for details.");
+        MobileUI.toast('Could not save the bean purchase. Please try again.', { type: 'error' });
         const saveBtn = document.querySelector('#bean-modal .btn-primary');
-        saveBtn.innerText = "Save";
-        saveBtn.disabled = false;
+        MobileUI.setBusy(saveBtn, false);
     }
 };
 
@@ -730,8 +799,7 @@ window.showGramsConfigModal = async () => {
                 <h3 style="margin-top:0; color:${colors.text}">⚙️ Cup Weight Configuration</h3>
                 <p style="color:${colors.secondaryText}"><small>Set how many grams of coffee are used per cup. This affects the dynamic price calculation.</small></p>
                 
-                <label style="display:block; font-weight:600; margin-bottom:8px; color:${colors.text};">Grams per Cup:</label>
-                <input type="number" id="grams-input" placeholder="Grams" step="0.5" min="1" value="${config.grams_per_cup}" style="width:100%; padding:12px; margin:10px 0; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box;">
+                <div class="form-field"><label for="grams-input">Grams per cup</label><input type="number" id="grams-input" inputmode="decimal" placeholder="Grams" step="0.5" min="1" value="${config.grams_per_cup}"></div>
                 
                 <div style="background:${colors.accentBg}; color:${colors.text}; padding:15px; border-radius:8px; margin:15px 0; font-size:0.9rem;">
                     <p style="margin:0;"><b>Current Price per Cup: €${config.coffee_price_per_cup.toFixed(2)}</b></p>
@@ -752,26 +820,22 @@ window.submitGramsConfig = async () => {
     const gramsInput = document.getElementById('grams-input');
     const grams = parseFloat(gramsInput.value);
 
-    if (!grams || grams <= 0) {
-        alert("Please enter a valid gram value.");
-        return;
-    }
+    if (!grams || grams <= 0) return MobileUI.showError(gramsInput, 'Enter a value greater than zero.');
 
     try {
         const saveBtn = document.querySelector('#grams-modal .btn-primary');
-        saveBtn.innerText = "Saving...";
-        saveBtn.disabled = true;
+        MobileUI.setBusy(saveBtn, true);
 
         await DB.updateGramsPerCup(grams);
         
-        alert("Cup weight updated! Price per cup has been recalculated automatically.");
-        location.reload();
+        document.getElementById('grams-modal').remove();
+        MobileUI.toast('Cup weight and price updated.', { type: 'success' });
+        await App.refreshCurrentView();
     } catch (e) {
         console.error(e);
-        alert("Error saving configuration. Check console for details.");
+        MobileUI.toast('Could not update the cup weight. Please try again.', { type: 'error' });
         const saveBtn = document.querySelector('#grams-modal .btn-primary');
-        saveBtn.innerText = "Save";
-        saveBtn.disabled = false;
+        MobileUI.setBusy(saveBtn, false);
     }
 };
 
@@ -787,11 +851,12 @@ window.showAdminView = async () => {
     // Ensure only admins can open this
     const isAdmin = await Auth.checkAdminStatus();
     if (!isAdmin) {
-        alert('Access denied: Admins only');
+        MobileUI.toast('Administrator access is required.', { type: 'error' });
         return;
     }
 
     try {
+        App.currentView = 'admin';
         const app = document.getElementById('app');
         const members = await DB.getAllMembers();
         const global = await databases.getDocument(DB_ID, COLL_GLOBAL, 'main');
@@ -803,7 +868,7 @@ window.showAdminView = async () => {
         app.innerHTML += UI.renderLogs(logs);
     } catch (e) {
         console.error('Failed to open admin view', e);
-        alert('Could not open admin panel. See console for details.');
+        MobileUI.toast('Could not open the admin panel.', { type: 'error' });
     }
 };
 
@@ -838,8 +903,7 @@ window.showSurchargeConfigModal = async () => {
                 <button onclick="document.getElementById('surcharge-modal').remove()" style="position:absolute; right:18px; top:18px; background:none; border:none; font-size:18px; cursor:pointer; color:${colors.text}">✕</button>
                 <h3 style="margin-top:0; color:${colors.text}">Configure Surcharge</h3>
                 <p style="color:${colors.secondaryText};"><small>Set the surcharge percentage applied when a user has a non-positive balance.</small></p>
-                <label style="display:block; font-weight:600; margin:8px 0 6px 0; color:${colors.text};">Surcharge percent (%):</label>
-                <input type="number" id="surcharge-input" value="${config.surcharge_percent || 10}" step="0.1" min="0" style="width:100%; padding:10px; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box;">
+                <div class="form-field"><label for="surcharge-input">Surcharge percent</label><input type="number" id="surcharge-input" inputmode="decimal" value="${config.surcharge_percent || 10}" step="0.1" min="0"></div>
                 <div style="display:flex; gap:10px; margin-top:14px; justify-content:flex-end;">
                     <button onclick="window.submitSurchargeConfig()" class="btn-primary">Save</button>
                     <button onclick="document.getElementById('surcharge-modal').remove()" class="btn-cancel">Cancel</button>
@@ -853,23 +917,19 @@ window.showSurchargeConfigModal = async () => {
 window.submitSurchargeConfig = async () => {
     const input = document.getElementById('surcharge-input');
     const val = parseFloat(input.value);
-    if (isNaN(val) || val < 0) {
-        alert('Please enter a valid surcharge percent (>= 0).');
-        return;
-    }
+    if (isNaN(val) || val < 0) return MobileUI.showError(input, 'Enter zero or a positive percentage.');
     try {
         const saveBtn = document.querySelector('#surcharge-modal .btn-primary');
-        saveBtn.innerText = 'Saving...';
-        saveBtn.disabled = true;
+        MobileUI.setBusy(saveBtn, true);
         await DB.updateSurchargePercent(val);
-        alert('Surcharge percent updated.');
-        location.reload();
+        document.getElementById('surcharge-modal').remove();
+        MobileUI.toast('Surcharge percentage updated.', { type: 'success' });
+        await App.refreshCurrentView();
     } catch (e) {
         console.error(e);
-        alert('Error saving surcharge percent. Check console for details.');
+        MobileUI.toast('Could not update the surcharge. Please try again.', { type: 'error' });
         const saveBtn = document.querySelector('#surcharge-modal .btn-primary');
-        saveBtn.innerText = 'Save';
-        saveBtn.disabled = false;
+        MobileUI.setBusy(saveBtn, false);
     }
 };
 
@@ -894,10 +954,10 @@ window.showDescalingModal = async (personId = null) => {
                 <h3 style="margin-top:0; color:${colors.text}">🧪 Record Descaling</h3>
                 <p style="color:${colors.secondaryText}"><small>Record who descaled the coffee machine today.</small></p>
                 
-                <label style="display:block; font-weight:600; margin-bottom:8px; color:${colors.text};">Who descaled?</label>
-                <select id="descale-person" style="width:100%; padding:12px; margin:10px 0; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box; font-size:1rem;">
+                <div class="form-field"><label for="descale-person">Who descaled?</label>
+                <select id="descale-person">
                     ${optionsHtml}
-                </select>
+                </select></div>
                 
                 <div style="background:${colors.accentBg}; color:${colors.text}; padding:15px; border-radius:8px; margin:20px 0; font-size:0.9rem;">
                     <p style="margin:0 0 8px 0;"><b>⏭️ Next person after this:</b></p>
@@ -927,26 +987,22 @@ window.submitDescaling = async () => {
     const selectedId = personSelect.value;
     const selectedName = personSelect.options[personSelect.selectedIndex].text;
 
-    if (!selectedId || !selectedName) {
-        alert("Please select a person.");
-        return;
-    }
+    if (!selectedId || !selectedName) return MobileUI.showError(personSelect, 'Select the person who descaled.');
 
     try {
         const saveBtn = document.querySelector('#descale-modal .btn-primary');
-        saveBtn.innerText = "Saving...";
-        saveBtn.disabled = true;
+        MobileUI.setBusy(saveBtn, true);
 
         await DB.recordDescaling(selectedName, selectedId);
         
-        alert("✓ Descaling recorded! Rotation advanced.");
-        location.reload();
+        document.getElementById('descale-modal').remove();
+        MobileUI.toast('Descaling recorded and rotation advanced.', { type: 'success' });
+        await App.refreshCurrentView();
     } catch (e) {
         console.error(e);
-        alert("Error saving descaling. Check console for details.");
+        MobileUI.toast('Could not record descaling. Please try again.', { type: 'error' });
         const saveBtn = document.querySelector('#descale-modal .btn-primary');
-        saveBtn.innerText = "Save";
-        saveBtn.disabled = false;
+        MobileUI.setBusy(saveBtn, false);
     }
 };
 
@@ -956,7 +1012,7 @@ window.toggleDescaleNotification = async (enable) => {
         console.log('Notification mode ' + (enable ? 'enabled' : 'disabled'));
     } catch (e) {
         console.error('Error toggling notification mode:', e);
-        alert('Error updating notification mode. Check console for details.');
+        MobileUI.toast('Could not update notification mode.', { type: 'error' });
         // Revert the checkbox
         document.getElementById('descale-notif-toggle').checked = !enable;
     }
@@ -979,10 +1035,10 @@ window.showSetNextDescalePersonModal = async () => {
                 <h3 style="margin-top:0; color:${colors.text}">🧪 Set Next Descaler</h3>
                 <p style="color:${colors.secondaryText}"><small>Manually assign who should descale next. After they descale, the rotation will continue alphabetically.</small></p>
                 
-                <label style="display:block; font-weight:600; margin-bottom:8px; color:${colors.text};">Who should descale next?</label>
-                <select id="set-next-person" style="width:100%; padding:12px; margin:10px 0; border:1px solid ${colors.inputBorder}; border-radius:8px; background:${colors.inputBg}; color:${colors.inputText}; box-sizing:border-box; font-size:1rem;">
+                <div class="form-field"><label for="set-next-person">Who should descale next?</label>
+                <select id="set-next-person">
                     ${optionsHtml}
-                </select>
+                </select></div>
                 
                 <div style="background:${colors.accentBg}; color:${colors.secondaryText}; padding:12px; border-radius:8px; margin:15px 0; font-size:0.85rem;">
                     <p style="margin:0;">✓ After they descale, rotation will continue alphabetically from this person.</p>
@@ -1003,27 +1059,22 @@ window.submitSetNextDescalePerson = async () => {
     const selectedId = personSelect.value;
     const selectedName = personSelect.options[personSelect.selectedIndex].text;
 
-    if (!selectedId || !selectedName) {
-        alert("Please select a person.");
-        return;
-    }
+    if (!selectedId || !selectedName) return MobileUI.showError(personSelect, 'Select the next person.');
 
     try {
         const saveBtn = document.querySelector('#set-next-descale-modal .btn-primary');
-        saveBtn.innerText = "Saving...";
-        saveBtn.disabled = true;
+        MobileUI.setBusy(saveBtn, true);
 
         await DB.setNextDescalePerson(selectedName, selectedId);
         
-        alert("✓ Next descaler updated!");
+        MobileUI.toast('Next descaler updated.', { type: 'success' });
         document.getElementById('set-next-descale-modal').remove();
         // Refresh admin view to show updated person
-        window.showAdminView();
+        await App.refreshCurrentView();
     } catch (e) {
         console.error(e);
-        alert("Error updating next descaler. Check console for details.");
+        MobileUI.toast('Could not update the next descaler.', { type: 'error' });
         const saveBtn = document.querySelector('#set-next-descale-modal .btn-primary');
-        saveBtn.innerText = "Save";
-        saveBtn.disabled = false;
+        MobileUI.setBusy(saveBtn, false);
     }
 };
