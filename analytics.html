@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2d3436">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Analytics - Coffee Co-op</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/coffee-192.svg" type="image/svg+xml">
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/appwrite@14.0.0"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
@@ -61,6 +66,20 @@
                 <button id="scatterplot-settings-btn" class="btn-primary" style="margin-top: 10px;" onclick="Analytics.showScatterplotSettingsModal()">⚙️ Filter & Settings</button>
             </div>
 
+            <!-- Circular weekday/hour heatmap -->
+            <div class="analytics-section coffee-orbit-section">
+                <h2>Group Coffee Orbit</h2>
+                <p class="analytics-section-intro">The last 12 weeks, wrapped into one week. Rings run Monday → Sunday from the center out; brighter slices mean more coffees.</p>
+                <div id="coffeeOrbit" class="coffee-orbit"></div>
+            </div>
+
+            <!-- Playful social proximity visualization -->
+            <div class="analytics-section coffee-constellation-section">
+                <h2>Coffee Constellation</h2>
+                <p class="analytics-section-intro">Twelve weeks of accidental coffee buddies. Bigger stars drank more coffee; brighter beams mean more coffees logged within 30 minutes of each other.</p>
+                <div id="coffeeConstellation" class="coffee-constellation"></div>
+            </div>
+
             <!-- Purchase Breakdown Section -->
             <div class="analytics-section">
                 <h2>Group Purchase Categories</h2>
@@ -81,6 +100,8 @@
     <script src="js/auth.js"></script>
     <script src="js/db.js"></script>
     <script src="js/ui.js"></script>
+    <script src="js/mobile-ui.js"></script>
+    <script src="js/pwa.js"></script>
     <script src="js/analytics.js"></script>
 </body>
 </html>
